@@ -1,0 +1,2309 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SURVEV.IO - الباتل رويال 2D</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a2414;
+            color: #fff;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* شاشة البداية والنهاية */
+        .overlay-screen {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(30, 48, 22, 0.92), rgba(12, 20, 9, 0.98));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 16px;
+            overflow-y: auto;
+        }
+        .menu-card {
+            background: rgba(24, 34, 20, 0.95);
+            border: 2px solid #4d7c0f;
+            border-radius: 18px;
+            padding: 22px;
+            width: 100%;
+            max-width: 460px;
+            text-align: center;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+        }
+        .game-title {
+            font-size: 32px;
+            font-weight: 900;
+            color: #a3e635;
+            text-shadow: 0 3px 10px rgba(163, 230, 53, 0.35);
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+        }
+        .game-subtitle {
+            font-size: 13px;
+            color: #cbd5e1;
+            margin-bottom: 14px;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 13px;
+            font-size: 17px;
+            font-weight: bold;
+            color: #0f172a;
+            background: linear-gradient(135deg, #a3e635, #65a30d);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(101, 163, 13, 0.45);
+            transition: transform 0.15s;
+            margin-top: 8px;
+        }
+        .btn-primary:active {
+            transform: scale(0.97);
+        }
+
+        /* صندوق اللعب الجماعي */
+        .mp-box {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 10px 0;
+            text-align: right;
+        }
+        .mp-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .mp-input {
+            flex: 1;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: #f8fafc;
+            font-size: 13px;
+            outline: none;
+        }
+        .mp-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            color: #fff;
+            white-space: nowrap;
+        }
+
+        /* واجهة اللعب HUD */
+        #hud {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            display: none;
+            z-index: 20;
+        }
+        .top-right-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            pointer-events: auto;
+        }
+        .stats-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .stat-pill {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 5px 11px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .mode-toggle-btn {
+            background: rgba(30, 41, 59, 0.88);
+            color: #38bdf8;
+            border: 1px solid #0284c7;
+            padding: 5px 10px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* الخريطة المصغرة وقائمة الأسلحة تحتها */
+        .top-left-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: none;
+        }
+        #minimapCanvas {
+            width: 135px;
+            height: 135px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            background: rgba(20, 32, 16, 0.85);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .ammo-bar {
+            display: flex;
+            gap: 4px;
+            background: rgba(15, 23, 42, 0.88);
+            padding: 5px 7px;
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: bold;
+            width: 135px;
+            justify-content: space-between;
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .bar-track {
+            width: 100%;
+            height: 10px;
+            background: #1e293b;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            transition: width 0.15s;
+        }
+        #hpBar { background: linear-gradient(90deg, #ef4444, #22c55e); width: 100%; }
+        #armorBar { background: linear-gradient(90deg, #3b82f6, #38bdf8); width: 0%; }
+
+        /* قائمة الأسلحة الخمسة (تتكيف مع الكمبيوتر والأندرويد) */
+        #weaponSlots {
+            display: flex;
+            gap: 6px;
+            pointer-events: auto;
+        }
+        .weapon-slot {
+            background: rgba(15, 23, 42, 0.85);
+            border: 2px solid #334155;
+            border-radius: 10px;
+            padding: 6px 10px;
+            color: #e2e8f0;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-width: 68px;
+            justify-content: center;
+            transition: all 0.12s;
+        }
+        .weapon-slot.active {
+            border-color: #a3e635;
+            background: rgba(63, 98, 18, 0.9);
+            color: #fff;
+            transform: scale(1.04);
+        }
+
+        /* وضع الأندرويد: قائمة الأسلحة تحت الخريطة مباشرة في أعلى اليسار */
+        body.android-mode #weaponSlots {
+            position: fixed;
+            top: 176px;
+            left: 10px;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 30;
+        }
+        body.android-mode .weapon-slot {
+            width: 135px;
+            justify-content: space-between;
+            padding: 6px 8px;
+            font-size: 11px;
+        }
+
+        /* عصي التحكم باللمس لوضع الأندرويد */
+        #touchControls {
+            display: none;
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 25;
+        }
+        body.android-mode #touchControls {
+            display: block;
+        }
+        .joystick-zone {
+            position: absolute;
+            bottom: 24px;
+            width: 125px;
+            height: 125px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.22);
+            pointer-events: auto;
+        }
+        #moveStickZone { left: 20px; }
+        #aimStickZone { right: 20px; }
+        .joystick-knob {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(163, 230, 53, 0.65);
+            border: 2px solid #fff;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #aimKnob { background: rgba(239, 68, 68, 0.65); }
+
+        .action-fab-group {
+            position: absolute;
+            right: 22px;
+            bottom: 162px;
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+        }
+        .fab-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.88);
+            border: 2px solid #94a3b8;
+            color: #fff;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .fab-btn:active { transform: scale(0.92); }
+
+        #killFeed {
+            position: absolute;
+            top: 76px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        .kill-msg {
+            background: rgba(0, 0, 0, 0.65);
+            padding: 3px 9px;
+            border-radius: 6px;
+            color: #f8fafc;
+            border-right: 3px solid #ef4444;
+        }
+        #zoneAlert {
+            position: absolute;
+            top: 55px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(220, 38, 38, 0.85);
+            color: #fff;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<!-- شاشة البداية -->
+<div id="startScreen" class="overlay-screen">
+    <div class="menu-card">
+        <div class="game-title">SURVEV.IO 2D</div>
+        <div class="game-subtitle">معركة البقاء الكلاسيكية • مباني ونوافذ • أسلحة نادرة • لعب جماعي</div>
+
+        <div class="mp-box">
+            <div class="mp-row">
+                <input type="text" id="playerNameInput" class="mp-input" placeholder="اكتب اسمك هنا..." maxlength="14">
+                <button id="createRoomBtn" type="button" class="mp-btn" style="background: #16a34a;">➕ إنشاء غرفة</button>
+            </div>
+            <div class="mp-row">
+                <input type="text" id="roomCodeInput" class="mp-input" placeholder="رمز الغرفة (4 أرقام)" maxlength="4" style="direction: ltr; text-align: center; font-weight: bold;">
+                <button id="joinRoomBtn" type="button" class="mp-btn" style="background: #2563eb;">🔗 انضمام</button>
+                <button id="copyCodeBtn" type="button" class="mp-btn" style="background: #475569; display: none;">📋 نسخ</button>
+            </div>
+            <div id="mpStatusText" style="font-size: 12px; color: #fcd34d; min-height: 18px; line-height: 1.4;">
+                العب بمفردك ضد 59 مقاتلاً، أو أنشئ غرفة خاصة لمواجهة صديقك (1 ضد 1)
+            </div>
+            <div id="inviteLinkBox" style="display: none; margin-top: 8px; background: rgba(0,0,0,0.45); padding: 7px; border-radius: 8px; border: 1px dashed rgba(251, 191, 36, 0.5);">
+                <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 4px;">🔗 رابط الدعوة المباشر لصديقك (يدخله الغرفة تلقائياً):</div>
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" id="inviteLinkInput" readonly style="flex: 1; padding: 5px 8px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #38bdf8; font-size: 11px; direction: ltr;">
+                    <button id="copyLinkBtn" type="button" style="background: #0284c7; color: #fff; border: none; border-radius: 6px; padding: 5px 10px; font-weight: bold; cursor: pointer; font-size: 11px; white-space: nowrap;">📋 نسخ الرابط</button>
+                </div>
+            </div>
+        </div>
+
+        <button id="startBtn" class="btn-primary">ابدأ المعركة الآن ⚔️</button>
+    </div>
+</div>
+
+<!-- شاشة نهاية الجولة -->
+<div id="endScreen" class="overlay-screen" style="display: none;">
+    <div class="menu-card">
+        <div id="endTitle" class="game-title">انتهت المعركة!</div>
+        <div id="endStats" style="margin: 14px 0; font-size: 15px; line-height: 1.8; color: #e2e8f0;"></div>
+        <button id="restartBtn" class="btn-primary">العودة للقائمة الرئيسية 🔄</button>
+    </div>
+</div>
+
+<!-- واجهة اللعب HUD -->
+<div id="hud">
+    <div class="top-left-panel">
+        <canvas id="minimapCanvas" width="135" height="135"></canvas>
+        <div class="ammo-bar">
+            <span style="color:#facc15;" id="ammo9">9mm:0</span>
+            <span style="color:#60a5fa;" id="ammo762">7.62:0</span>
+            <span style="color:#4ade80;" id="ammo556">5.56:0</span>
+            <span style="color:#f87171;" id="ammo12">12G:0</span>
+        </div>
+    </div>
+
+    <div class="top-right-panel">
+        <div class="stats-row">
+            <div class="stat-pill">👥 الأحياء: <span id="aliveCount" style="color:#a3e635;">60</span></div>
+            <div class="stat-pill">💀 القتل: <span id="killCount" style="color:#f87171;">0</span></div>
+        </div>
+        <button id="androidModeToggle" class="mode-toggle-btn">📱 وضع الأندرويد</button>
+    </div>
+
+    <div id="zoneAlert">⚠️ منطقة القصف الجوي (Red Zone) نشطة!</div>
+    <div id="killFeed"></div>
+
+    <div class="bottom-center-panel">
+        <div id="weaponSlots">
+            <div class="weapon-slot active" data-slot="0" id="slot0">🔫 <span>M9</span></div>
+            <div class="weapon-slot" data-slot="1" id="slot1">➖ <span>فارغ</span></div>
+            <div class="weapon-slot" data-slot="2" id="slot2">👊 <span>قبضة</span></div>
+            <div class="weapon-slot" data-slot="3" id="slot3">💣 <span>0</span></div>
+            <div class="weapon-slot" data-slot="4" id="slot4">🩹 <span>0</span></div>
+        </div>
+        <div class="bars-container">
+            <div class="bar-track"><div id="armorBar" class="bar-fill"></div></div>
+            <div class="bar-track"><div id="hpBar" class="bar-fill"></div></div>
+        </div>
+    </div>
+
+    <!-- عناصر التحكم باللمس لوضع الأندرويد -->
+    <div id="touchControls">
+        <div id="moveStickZone" class="joystick-zone"><div id="moveKnob" class="joystick-knob"></div></div>
+        <div id="aimStickZone" class="joystick-zone"><div id="aimKnob" class="joystick-knob"></div></div>
+        <div class="action-fab-group">
+            <button id="reloadFab" class="fab-btn" title="تعبئة">🔄</button>
+            <button id="healFab" class="fab-btn" title="علاج">🩹</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ================= إعدادات اللعبة الأساسية =================
+let MAP_SIZE = 16000;
+let BOT_COUNT = 59;
+const BOT_DAMAGE_MULTIPLIER = 0.25;
+const MIN_SPAWN_DISTANCE = 1800;
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const minimapCanvas = document.getElementById('minimapCanvas');
+const minimapCtx = minimapCanvas.getContext('2d');
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// كشف تلقائي للهاتف لتفعيل وضع الأندرويد
+if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768) {
+    document.body.classList.add('android-mode');
+}
+document.getElementById('androidModeToggle').addEventListener('click', () => {
+    document.body.classList.toggle('android-mode');
+});
+
+// ================= نظام الصوت التوليدي =================
+let audioCtx = null;
+function initAudio() {
+    if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioCtx = new AudioContext();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playSound(type) {
+    if (!audioCtx) return;
+    try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'pistol' || type === 'smg') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(type === 'smg' ? 320 : 260, now);
+            osc.frequency.exponentialRampToValueAtTime(55, now + 0.09);
+            gain.gain.setValueAtTime(0.14, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+            osc.start(now);
+            osc.stop(now + 0.09);
+        } else if (type === 'rifle') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(210, now);
+            osc.frequency.exponentialRampToValueAtTime(42, now + 0.13);
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+            osc.start(now);
+            osc.stop(now + 0.13);
+        } else if (type === 'shotgun') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(140, now);
+            osc.frequency.exponentialRampToValueAtTime(30, now + 0.22);
+            gain.gain.setValueAtTime(0.25, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+            osc.start(now);
+            osc.stop(now + 0.22);
+        } else if (type === 'sniper') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(420, now);
+            osc.frequency.exponentialRampToValueAtTime(35, now + 0.32);
+            gain.gain.setValueAtTime(0.28, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+            osc.start(now);
+            osc.stop(now + 0.32);
+        } else if (type === 'explosion') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(95, now);
+            osc.frequency.exponentialRampToValueAtTime(18, now + 0.55);
+            gain.gain.setValueAtTime(0.35, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+            osc.start(now);
+            osc.stop(now + 0.55);
+        } else if (type === 'glass') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1400, now);
+            osc.frequency.exponentialRampToValueAtTime(450, now + 0.12);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            osc.start(now);
+            osc.stop(now + 0.12);
+        } else if (type === 'pickup') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(520, now);
+            osc.frequency.exponentialRampToValueAtTime(840, now + 0.08);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+            osc.start(now);
+            osc.stop(now + 0.08);
+        }
+    } catch (e) {}
+}
+
+<!-- ================= قاعدة بيانات الأسلحة ================= -->
+const GUNS = {
+    m9:     { id: 'm9',     name: 'M9',      ammoType: '9mm',  magSize: 15, damage: 14, fireRate: 0.24, speed: 1250, spread: 0.06, pellets: 1, sound: 'pistol',  bodyColor: '#64748b', stockColor: '#1e293b', len: 24, width: 6,  rarity: 1 },
+    mp5:    { id: 'mp5',    name: 'MP5',     ammoType: '9mm',  magSize: 30, damage: 15, fireRate: 0.10, speed: 1350, spread: 0.09, pellets: 1, sound: 'smg',     bodyColor: '#334155', stockColor: '#0f172a', len: 34, width: 7,  rarity: 2 },
+    ak47:   { id: 'ak47',   name: 'AK-47',   ammoType: '762',  magSize: 30, damage: 24, fireRate: 0.14, speed: 1550, spread: 0.07, pellets: 1, sound: 'rifle',   bodyColor: '#27272a', stockColor: '#9a3412', len: 44, width: 7,  rarity: 2 },
+    m416:   { id: 'm416',   name: 'M416',    ammoType: '556',  magSize: 30, damage: 21, fireRate: 0.11, speed: 1650, spread: 0.04, pellets: 1, sound: 'rifle',   bodyColor: '#1e293b', stockColor: '#475569', len: 44, width: 7,  rarity: 2 },
+    m870:   { id: 'm870',   name: 'M870',    ammoType: '12g',  magSize: 5,  damage: 14, fireRate: 0.78, speed: 1100, spread: 0.24, pellets: 7, sound: 'shotgun', bodyColor: '#3f3f46', stockColor: '#7c2d12', len: 42, width: 8,  rarity: 2 },
+    mosin:  { id: 'mosin',  name: 'Mosin',   ammoType: '762',  magSize: 5,  damage: 68, fireRate: 1.05, speed: 2200, spread: 0.01, pellets: 1, sound: 'sniper',  bodyColor: '#374151', stockColor: '#92400e', len: 52, width: 6,  rarity: 3 },
+    awms:   { id: 'awms',   name: 'AWM-S 👑',ammoType: '762',  magSize: 5,  damage: 98, fireRate: 1.25, speed: 2600, spread: 0.005,pellets: 1, sound: 'sniper',  bodyColor: '#ca8a04', stockColor: '#854d0e', len: 56, width: 7,  rarity: 4, mythicOnly: true },
+    m249:   { id: 'm249',   name: 'M249 🛡️', ammoType: '556',  magSize: 80, damage: 23, fireRate: 0.08, speed: 1700, spread: 0.08, pellets: 1, sound: 'rifle',   bodyColor: '#991b1b', stockColor: '#1f2937', len: 50, width: 9,  rarity: 4, mythicOnly: true }
+};
+
+const MELEE_WEAPONS = {
+    fists:  { id: 'fists',  name: 'قبضة',   damage: 20, range: 44, rate: 0.35, color: '#f3d2b3' },
+    knife:  { id: 'knife',  name: 'خنجر',   damage: 34, range: 54, rate: 0.28, color: '#cbd5e1' },
+    katana: { id: 'katana', name: 'كاتانا', damage: 55, range: 74, rate: 0.42, color: '#38bdf8' },
+    pan:    { id: 'pan',    name: 'مقلاة',  damage: 45, range: 58, rate: 0.38, color: '#1e293b' }
+};
+
+const AMMO_COLORS = { '9mm': '#facc15', '762': '#3b82f6', '556': '#22c55e', '12g': '#ef4444' };
+
+// ================= حالة العالم والكيانات =================
+let gameState = 'MENU';
+let player = null;
+let fighters = [];
+let buildings = [];
+let obstacles = [];
+let lootItems = [];
+let bullets = [];
+let grenades = [];
+let smokes = [];
+let particles = [];
+
+let safeZone = { x: 8000, y: 8000, r: 11500, targetX: 8000, targetY: 8000, targetR: 11500, timer: 45 };
+let redZone = { active: false, x: 8000, y: 8000, r: 950, vx: 35, vy: 25, timer: 55, bombTimer: 0 };
+
+const BOT_NAMES = [
+    "صقر الصحراء", "الذئب الأسود", "قناص الليل", "الأسد الجسور", "شبح المعركة", "فارس الظلام",
+    "النمر السريع", "رعد الشمال", "صياد الجوائز", "العاصفة", "البرق الخاطف", "حامي الحصن",
+    "كاسر الدروع", "النسر الذهبي", "سيف الحق", "المحارب", "القيصر", "الجنرال", "الكوبرا",
+    "العقرب", "المدمر", "المقاتل الشرس", "أسطورة البقاء", "بطل الساحة", "زئير الأسد", "نجم السماء",
+    "فهد الصحراء", "صقر الجبل", "حارس البوابة", "المغامر", "الرامي الماهر", "سهم النار",
+    "بركان الغضب", "إعصار", "سيد القنص", "الظل الصامت", "فارس الليل", "البطل الخارق",
+    "ملك الساحة", "الدرع الحديدي", "السيف القاطع", "الذئب الأبيض", "صائد الأعداء", "قائد الفرقة",
+    "المستكشف", "الناجي الأخير", "شجاع القلب", "نمر البنغال", "صقر الجزيرة", "رعد الجنوب",
+    "أسد الأطلس", "فارس الشرق", "النسر الجارح", "سيد الميدان", "البرق", "الشهاب", "المقدام", "البطل", "المنتصر"
+];
+
+const OUTFIT_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
+
+// ================= توليد العالم والمباني =================
+function createBuilding(x, y, w, h, type, specialType = null) {
+    const wallT = 22;
+    const doorW = 86;
+    const winW = 76;
+    const walls = [];
+    const windows = [];
+
+    const floorColor = specialType === 'sniper_mansion' ? '#78350f' :
+                       specialType === 'heavy_bunker' ? '#334155' :
+                       (type === 'warehouse' ? '#475569' : '#855834');
+
+    // الجدار العلوي (نافذة في المنتصف)
+    walls.push({ x: x, y: y, w: (w - winW) / 2, h: wallT });
+    windows.push({ x: x + (w - winW) / 2, y: y + 4, w: winW, h: wallT - 8, broken: false });
+    walls.push({ x: x + (w + winW) / 2, y: y, w: (w - winW) / 2, h: wallT });
+
+    // الجدار السفلي (باب في المنتصف)
+    walls.push({ x: x, y: y + h - wallT, w: (w - doorW) / 2, h: wallT });
+    walls.push({ x: x + (w + doorW) / 2, y: y + h - wallT, w: (w - doorW) / 2, h: wallT });
+
+    // الجدار الأيسر (نافذة)
+    walls.push({ x: x, y: y, w: wallT, h: (h - winW) / 2 });
+    windows.push({ x: x + 4, y: y + (h - winW) / 2, w: wallT - 8, h: winW, broken: false });
+    walls.push({ x: x, y: y + (h + winW) / 2, w: wallT, h: (h - winW) / 2 });
+
+    // الجدار الأيمن (باب إذا كان مستودع أو نافذة)
+    if (type === 'warehouse' || specialType) {
+        walls.push({ x: x + w - wallT, y: y, w: wallT, h: (h - doorW) / 2 });
+        walls.push({ x: x + w - wallT, y: y + (h + doorW) / 2, w: wallT, h: (h - doorW) / 2 });
+    } else {
+        walls.push({ x: x + w - wallT, y: y, w: wallT, h: (h - winW) / 2 });
+        windows.push({ x: x + w - wallT + 4, y: y + (h - winW) / 2, w: wallT - 8, h: winW, broken: false });
+        walls.push({ x: x + w - wallT, y: y + (h + winW) / 2, w: wallT, h: (h - winW) / 2 });
+    }
+
+    // جدار داخلي للمنازل الكبيرة
+    if (type === 'duplex') {
+        walls.push({ x: x + w * 0.5 - 10, y: y + wallT, w: 20, h: h * 0.45 });
+    }
+
+    return { x, y, w, h, type, specialType, floorColor, walls, windows };
+}
+
+function generateWorld() {
+    buildings = [];
+    obstacles = [];
+    lootItems = [];
+    bullets = [];
+    grenades = [];
+    smokes = [];
+    particles = [];
+
+    const gridN = MAP_SIZE >= 10000 ? 5 : 3;
+    const cellSpan = (MAP_SIZE - 1600) / gridN;
+    let bIndex = 0;
+
+    for (let gx = 0; gx < gridN; gx++) {
+        for (let gy = 0; gy < gridN; gy++) {
+            const bx = 800 + gx * cellSpan + (Math.random() - 0.5) * (cellSpan * 0.35);
+            const by = 800 + gy * cellSpan + (Math.random() - 0.5) * (cellSpan * 0.35);
+
+            let specialType = null;
+            let bType = ['cabin', 'warehouse', 'duplex'][bIndex % 3];
+            let bw = bType === 'cabin' ? 320 : (bType === 'warehouse' ? 440 : 480);
+            let bh = bType === 'cabin' ? 300 : (bType === 'warehouse' ? 360 : 420);
+
+            if (gx === 1 && gy === 1) {
+                specialType = 'sniper_mansion';
+                bw = 500; bh = 460;
+            } else if (gx === gridN - 2 && gy === gridN - 2) {
+                specialType = 'heavy_bunker';
+                bw = 500; bh = 460;
+            }
+
+            const b = createBuilding(bx, by, bw, bh, bType, specialType);
+            buildings.push(b);
+            bIndex++;
+
+            // لوت داخل المبنى
+            if (specialType === 'sniper_mansion') {
+                spawnLoot(bx + bw / 2, by + bh / 2, 'gun', 'awms');
+                spawnLoot(bx + bw / 2 + 45, by + bh / 2, 'ammo', '762', 25);
+                spawnLoot(bx + bw / 2 - 45, by + bh / 2, 'armor', 'vest3');
+            } else if (specialType === 'heavy_bunker') {
+                spawnLoot(bx + bw / 2, by + bh / 2, 'gun', 'm249');
+                spawnLoot(bx + bw / 2 + 45, by + bh / 2, 'ammo', '556', 120);
+                spawnLoot(bx + bw / 2 - 45, by + bh / 2, 'armor', 'vest3');
+            } else {
+                // أسلحة نادرة متوازنة
+                if (Math.random() < 0.65) {
+                    const pool = ['mp5', 'ak47', 'm416', 'm870', 'mosin'];
+                    const chosen = pool[Math.floor(Math.random() * pool.length)];
+                    spawnLoot(bx + bw * 0.35, by + bh * 0.45, 'gun', chosen);
+                    spawnLoot(bx + bw * 0.35 + 32, by + bh * 0.45, 'ammo', GUNS[chosen].ammoType, 30);
+                }
+                if (Math.random() < 0.45) {
+                    const melees = ['knife', 'katana', 'pan'];
+                    spawnLoot(bx + bw * 0.65, by + bh * 0.55, 'melee', melees[Math.floor(Math.random() * melees.length)]);
+                }
+                if (Math.random() < 0.45) {
+                    spawnLoot(bx + bw * 0.5, by + bh * 0.3, 'medkit', 'medkit');
+                }
+                if (Math.random() < 0.5) {
+                    spawnLoot(bx + bw * 0.5, by + bh * 0.7, 'grenade', Math.random() < 0.7 ? 'frag' : 'smoke');
+                }
+            }
+        }
+    }
+
+    // أشجار وصخور وصناديق خشبية في الخريطة
+    const obsCount = MAP_SIZE >= 10000 ? 420 : 95;
+    for (let i = 0; i < obsCount; i++) {
+        const ox = 250 + Math.random() * (MAP_SIZE - 500);
+        const oy = 250 + Math.random() * (MAP_SIZE - 500);
+        if (isInsideAnyBuilding(ox, oy, 90)) continue;
+
+        const rType = Math.random();
+        if (rType < 0.48) {
+            obstacles.push({ x: ox, y: oy, r: 44, type: 'tree', hp: 160, maxHp: 160 });
+        } else if (rType < 0.78) {
+            obstacles.push({ x: ox, y: oy, r: 34, type: 'rock', hp: 240, maxHp: 240 });
+        } else {
+            obstacles.push({ x: ox, y: oy, r: 28, type: 'crate', hp: 70, maxHp: 70 });
+        }
+    }
+}
+
+function isInsideAnyBuilding(x, y, pad = 0) {
+    for (const b of buildings) {
+        if (x > b.x - pad && x < b.x + b.w + pad && y > b.y - pad && y < b.y + b.h + pad) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function spawnLoot(x, y, kind, id, amount = 1) {
+    lootItems.push({ x, y, kind, id, amount, r: 18 });
+}
+
+// ================= إنشاء المقاتلين بتوزيع متباعد =================
+function getSpreadSpawnPoint(existingList) {
+    let bestPt = { x: MAP_SIZE / 2, y: MAP_SIZE / 2 };
+    let bestMinDist = -1;
+
+    for (let attempt = 0; attempt < 60; attempt++) {
+        const px = 400 + Math.random() * (MAP_SIZE - 800);
+        const py = 400 + Math.random() * (MAP_SIZE - 800);
+        if (isInsideAnyBuilding(px, py, 50)) continue;
+
+        let minDist = Infinity;
+        for (const f of existingList) {
+            const d = Math.hypot(px - f.x, py - f.y);
+            if (d < minDist) minDist = d;
+        }
+        if (minDist > bestMinDist) {
+            bestMinDist = minDist;
+            bestPt = { x: px, y: py };
+        }
+        if (minDist >= MIN_SPAWN_DISTANCE) break;
+    }
+    return bestPt;
+}
+
+function createFighter(id, name, x, y, isPlayer = false) {
+    // حصر الأسلحة الأسطورية (awms, m249) في البيتين المميزين فقط؛ لا تبدأ مع أي مقاتل
+    const startGuns = ['m9', 'mp5', 'ak47', 'm416', 'm870', 'mosin'];
+    const botGunId = isPlayer ? 'm9' : startGuns[Math.floor(Math.random() * startGuns.length)];
+    const gunDef = GUNS[botGunId];
+
+    const startMelees = ['fists', 'knife', 'pan', 'katana'];
+    const botMeleeId = isPlayer ? 'fists' : startMelees[Math.floor(Math.random() * startMelees.length)];
+
+    return {
+        id,
+        name,
+        isPlayer,
+        isRemoteFriend: false,
+        x, y,
+        vx: 0, vy: 0,
+        r: 22,
+        angle: Math.random() * Math.PI * 2,
+        hp: 100, maxHp: 100,
+        armor: isPlayer ? 25 : (Math.random() < 0.5 ? 40 : 0),
+        maxArmor: 100,
+        outfitColor: OUTFIT_COLORS[Math.floor(Math.random() * OUTFIT_COLORS.length)],
+        hasHelmet: !isPlayer && Math.random() < 0.6,
+        slots: [
+            { id: gunDef.id, ammoInMag: gunDef.magSize },
+            null,
+            { id: botMeleeId }
+        ],
+        activeSlot: 0,
+        ammo: { '9mm': 45, '762': 30, '556': 30, '12g': 15 },
+        grenades: { frag: isPlayer ? 1 : 0, smoke: isPlayer ? 1 : 0 },
+        grenadeType: 'frag',
+        medkits: isPlayer ? 1 : 0,
+        fireCooldown: 0,
+        reloadTimer: 0,
+        meleeAnim: 0,
+        kills: 0,
+        dead: false,
+        aiTimer: Math.random() * 1.5,
+        aiMoveAngle: Math.random() * Math.PI * 2
+    };
+}
+
+// ================= مدخلات التحكم (كيبورد + ماوس + أندرويد) =================
+const keys = {};
+const mouse = { x: 0, y: 0, down: false };
+const touchState = { moveX: 0, moveY: 0, aimX: 0, aimY: 0, firing: false };
+let lastGrenadeTapTime = 0;
+
+window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+    if (!player || player.dead || gameState !== 'PLAYING') return;
+
+    if (e.code === 'Digit1') switchSlot(0);
+    if (e.code === 'Digit2') switchSlot(1);
+    if (e.code === 'Digit3') switchSlot(2);
+    if (e.code === 'Digit4') {
+        const now = Date.now();
+        if (player.activeSlot === 3 && now - lastGrenadeTapTime < 450) {
+            player.grenadeType = player.grenadeType === 'frag' ? 'smoke' : 'frag';
+            updateHUD();
+        }
+        lastGrenadeTapTime = now;
+        switchSlot(3);
+    }
+    if (e.code === 'Digit5') useMedkit(player);
+    if (e.code === 'KeyR') startReload(player);
+    if (e.code === 'KeyF' || e.code === 'KeyE') pickupNearbyLoot(player);
+});
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+canvas.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+});
+canvas.addEventListener('mousedown', (e) => {
+    if (e.button === 0 && !document.body.classList.contains('android-mode')) {
+        initAudio();
+        mouse.down = true;
+    }
+});
+window.addEventListener('mouseup', () => { mouse.down = false; });
+
+// أحداث أزرار الأسلحة في الواجهة
+document.querySelectorAll('.weapon-slot').forEach(el => {
+    el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!player || player.dead) return;
+        const slotIdx = parseInt(el.getAttribute('data-slot'));
+        if (slotIdx === 3) {
+            const now = Date.now();
+            if (player.activeSlot === 3 && now - lastGrenadeTapTime < 450) {
+                player.grenadeType = player.grenadeType === 'frag' ? 'smoke' : 'frag';
+                updateHUD();
+            }
+            lastGrenadeTapTime = now;
+            switchSlot(3);
+        } else if (slotIdx === 4) {
+            useMedkit(player);
+        } else {
+            switchSlot(slotIdx);
+        }
+    });
+});
+
+document.getElementById('reloadFab').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (player && !player.dead) startReload(player);
+});
+document.getElementById('healFab').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (player && !player.dead) useMedkit(player);
+});
+
+// عصي التحكم باللمس
+function setupJoystick(zoneId, knobId, onMove, onEnd) {
+    const zone = document.getElementById(zoneId);
+    const knob = document.getElementById(knobId);
+    let activeTouchId = null;
+
+    zone.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        initAudio();
+        const t = e.changedTouches[0];
+        activeTouchId = t.identifier;
+        handleMove(t);
+    }, { passive: false });
+
+    zone.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === activeTouchId) {
+                handleMove(e.changedTouches[i]);
+            }
+        }
+    }, { passive: false });
+
+    const endTouch = (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === activeTouchId) {
+                activeTouchId = null;
+                knob.style.transform = 'translate(-50%, -50%)';
+                onEnd();
+            }
+        }
+    };
+    zone.addEventListener('touchend', endTouch);
+    zone.addEventListener('touchcancel', endTouch);
+
+    function handleMove(t) {
+        const rect = zone.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const maxR = rect.width * 0.42;
+        let dx = t.clientX - cx;
+        let dy = t.clientY - cy;
+        const dist = Math.hypot(dx, dy);
+        if (dist > maxR) {
+            dx = (dx / dist) * maxR;
+            dy = (dy / dist) * maxR;
+        }
+        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        onMove(dx / maxR, dy / maxR, dist / maxR);
+    }
+}
+
+setupJoystick('moveStickZone', 'moveKnob',
+    (nx, ny) => { touchState.moveX = nx; touchState.moveY = ny; },
+    () => { touchState.moveX = 0; touchState.moveY = 0; }
+);
+setupJoystick('aimStickZone', 'aimKnob',
+    (nx, ny, power) => {
+        if (power > 0.15) {
+            touchState.aimX = nx;
+            touchState.aimY = ny;
+            if (player) player.angle = Math.atan2(ny, nx);
+        }
+        touchState.firing = power > 0.42;
+    },
+    () => { touchState.firing = false; }
+);
+
+function switchSlot(idx) {
+    if (!player) return;
+    if (idx === 1 && !player.slots[1]) return;
+    player.activeSlot = idx;
+    player.reloadTimer = 0;
+    updateHUD();
+}
+
+function startReload(ent) {
+    if (ent.activeSlot > 1) return;
+    const slot = ent.slots[ent.activeSlot];
+    if (!slot) return;
+    const gun = GUNS[slot.id];
+    if (slot.ammoInMag >= gun.magSize) return;
+    if (ent.ammo[gun.ammoType] <= 0) return;
+    if (ent.reloadTimer > 0) return;
+    ent.reloadTimer = 1.1;
+}
+
+function useMedkit(ent) {
+    if (ent.medkits <= 0 || ent.hp >= ent.maxHp) return;
+    ent.medkits--;
+    ent.hp = Math.min(ent.maxHp, ent.hp + 45);
+    if (ent.isPlayer) {
+        playSound('pickup');
+        updateHUD();
+    }
+}
+
+// ================= نظام الهجوم وإطلاق النار =================
+window.triggerAttack = function(ent) {
+    if (!ent || ent.dead || ent.fireCooldown > 0 || ent.reloadTimer > 0) return;
+
+    if (ent.activeSlot === 0 || ent.activeSlot === 1) {
+        const slot = ent.slots[ent.activeSlot];
+        if (!slot) return;
+        const gun = GUNS[slot.id];
+
+        if (slot.ammoInMag <= 0) {
+            startReload(ent);
+            return;
+        }
+
+        slot.ammoInMag--;
+        ent.fireCooldown = gun.fireRate;
+        if (ent.isPlayer) playSound(gun.sound);
+
+        const muzzleX = ent.x + Math.cos(ent.angle) * (ent.r + gun.len * 0.6);
+        const muzzleY = ent.y + Math.sin(ent.angle) * (ent.r + gun.len * 0.6);
+
+        for (let p = 0; p < gun.pellets; p++) {
+            const ang = ent.angle + (Math.random() - 0.5) * gun.spread;
+            bullets.push({
+                x: muzzleX,
+                y: muzzleY,
+                vx: Math.cos(ang) * gun.speed,
+                vy: Math.sin(ang) * gun.speed,
+                damage: gun.damage,
+                life: 1.4,
+                ownerId: ent.id,
+                ownerIsBot: !ent.isPlayer && !ent.isRemoteFriend,
+                color: AMMO_COLORS[gun.ammoType] || '#fef08a'
+            });
+        }
+        if (ent.isPlayer) updateHUD();
+
+    } else if (ent.activeSlot === 2) {
+        const melee = MELEE_WEAPONS[ent.slots[2].id] || MELEE_WEAPONS.fists;
+        ent.fireCooldown = melee.rate;
+        ent.meleeAnim = 0.2;
+
+        const hitX = ent.x + Math.cos(ent.angle) * (ent.r + melee.range * 0.65);
+        const hitY = ent.y + Math.sin(ent.angle) * (ent.r + melee.range * 0.65);
+
+        for (const target of fighters) {
+            if (target.dead || target.id === ent.id) continue;
+            if (Math.hypot(target.x - hitX, target.y - hitY) <= target.r + 24) {
+                applyDamage(target, melee.damage, ent);
+            }
+        }
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            const obs = obstacles[i];
+            if (Math.hypot(obs.x - hitX, obs.y - hitY) <= obs.r + 22) {
+                damageObstacle(i, melee.damage);
+            }
+        }
+
+    } else if (ent.activeSlot === 3) {
+        const gType = ent.grenadeType || 'frag';
+        if ((ent.grenades[gType] || 0) <= 0) return;
+        ent.grenades[gType]--;
+        ent.fireCooldown = 0.8;
+
+        grenades.push({
+            x: ent.x + Math.cos(ent.angle) * 28,
+            y: ent.y + Math.sin(ent.angle) * 28,
+            vx: Math.cos(ent.angle) * 520,
+            vy: Math.sin(ent.angle) * 520,
+            timer: 2.2,
+            type: gType,
+            ownerId: ent.id
+        });
+        if (ent.isPlayer) updateHUD();
+    }
+};
+
+function applyDamage(target, rawDmg, attacker) {
+    if (target.dead) return;
+    let dmg = rawDmg;
+    if (target.isPlayer && attacker && !attacker.isPlayer && !attacker.isRemoteFriend) {
+        dmg *= BOT_DAMAGE_MULTIPLIER;
+    }
+
+    if (target.armor > 0) {
+        const absorbed = Math.min(target.armor, dmg * 0.45);
+        target.armor -= absorbed;
+        dmg -= absorbed;
+    }
+
+    target.hp -= dmg;
+    for (let i = 0; i < 5; i++) {
+        particles.push({
+            x: target.x, y: target.y,
+            vx: (Math.random() - 0.5) * 180,
+            vy: (Math.random() - 0.5) * 180,
+            life: 0.35, color: '#dc2626', r: 4
+        });
+    }
+
+    if (target.hp <= 0) {
+        target.hp = 0;
+        target.dead = true;
+        if (attacker) {
+            attacker.kills++;
+            addKillFeed(`${attacker.name} قضى على ${target.name}`);
+        }
+        // إسقاط لوت عند الموت
+        if (target.slots[0]) spawnLoot(target.x, target.y, 'gun', target.slots[0].id);
+        if (target.medkits > 0) spawnLoot(target.x + 20, target.y, 'medkit', 'medkit');
+        checkGameEnd();
+    }
+    if (target.isPlayer || (attacker && attacker.isPlayer)) updateHUD();
+}
+
+function damageObstacle(idx, dmg) {
+    const obs = obstacles[idx];
+    if (!obs) return;
+    obs.hp -= dmg;
+    if (obs.hp <= 0) {
+        if (obs.type === 'crate') {
+            const roll = Math.random();
+            if (roll < 0.4) {
+                const guns = ['mp5', 'ak47', 'm416', 'm870'];
+                const g = guns[Math.floor(Math.random() * guns.length)];
+                spawnLoot(obs.x, obs.y, 'gun', g);
+            } else if (roll < 0.7) {
+                spawnLoot(obs.x, obs.y, 'medkit', 'medkit');
+            } else {
+                spawnLoot(obs.x, obs.y, 'armor', 'vest2');
+            }
+        }
+        obstacles.splice(idx, 1);
+    }
+}
+
+function addKillFeed(text) {
+    const feed = document.getElementById('killFeed');
+    const div = document.createElement('div');
+    div.className = 'kill-msg';
+    div.textContent = text;
+    feed.prepend(div);
+    setTimeout(() => div.remove(), 4000);
+}
+
+// ================= التقاط اللوت =================
+function pickupNearbyLoot(ent) {
+    for (let i = lootItems.length - 1; i >= 0; i--) {
+        const item = lootItems[i];
+        if (Math.hypot(ent.x - item.x, ent.y - item.y) <= ent.r + item.r + 16) {
+            let picked = false;
+            if (item.kind === 'gun') {
+                const gun = GUNS[item.id];
+                if (!ent.slots[1]) {
+                    ent.slots[1] = { id: gun.id, ammoInMag: gun.magSize };
+                    ent.activeSlot = 1;
+                    picked = true;
+                } else {
+                    const oldId = ent.slots[ent.activeSlot <= 1 ? ent.activeSlot : 0].id;
+                    ent.slots[ent.activeSlot <= 1 ? ent.activeSlot : 0] = { id: gun.id, ammoInMag: gun.magSize };
+                    item.id = oldId;
+                    if (ent.isPlayer) { playSound('pickup'); updateHUD(); }
+                    return;
+                }
+            } else if (item.kind === 'melee') {
+                ent.slots[2] = { id: item.id };
+                picked = true;
+            } else if (item.kind === 'ammo') {
+                ent.ammo[item.id] = (ent.ammo[item.id] || 0) + item.amount;
+                picked = true;
+            } else if (item.kind === 'medkit') {
+                ent.medkits++;
+                picked = true;
+            } else if (item.kind === 'grenade') {
+                ent.grenades[item.id] = (ent.grenades[item.id] || 0) + 1;
+                picked = true;
+            } else if (item.kind === 'armor') {
+                ent.armor = Math.min(ent.maxArmor, ent.armor + (item.id === 'vest3' ? 85 : 50));
+                picked = true;
+            }
+
+            if (picked) {
+                lootItems.splice(i, 1);
+                if (ent.isPlayer) { playSound('pickup'); updateHUD(); }
+                break;
+            }
+        }
+    }
+}
+
+// ================= التصادمات (جدران، نوافذ، عوائق) =================
+function resolveEntityCollisions(ent) {
+    ent.x = Math.max(ent.r, Math.min(MAP_SIZE - ent.r, ent.x));
+    ent.y = Math.max(ent.r, Math.min(MAP_SIZE - ent.r, ent.y));
+
+    for (const obs of obstacles) {
+        const dx = ent.x - obs.x;
+        const dy = ent.y - obs.y;
+        const dist = Math.hypot(dx, dy);
+        const minD = ent.r + obs.r;
+        if (dist < minD && dist > 0) {
+            const push = minD - dist;
+            ent.x += (dx / dist) * push;
+            ent.y += (dy / dist) * push;
+        }
+    }
+
+    for (const b of buildings) {
+        for (const w of b.walls) pushCircleOutOfRect(ent, w);
+        for (const win of b.windows) pushCircleOutOfRect(ent, win);
+    }
+}
+
+function pushCircleOutOfRect(circle, rect) {
+    const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.w));
+    const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.h));
+    const dx = circle.x - closestX;
+    const dy = circle.y - closestY;
+    const dist = Math.hypot(dx, dy);
+    if (dist < circle.r) {
+        if (dist === 0) {
+            circle.y += circle.r;
+        } else {
+            const overlap = circle.r - dist;
+            circle.x += (dx / dist) * overlap;
+            circle.y += (dy / dist) * overlap;
+        }
+    }
+}
+
+function pointInRect(px, py, r) {
+    return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+}
+
+// ================= حلقة التحديث الفيزيائي =================
+let lastTime = performance.now();
+
+function update(dt) {
+    if (gameState !== 'PLAYING') return;
+
+    // تحديث المنطقة الآمنة
+    if (safeZone.r > 550) {
+        safeZone.r -= 14 * dt;
+    }
+
+    // تحديث منطقة القصف الجوي (Red Zone)
+    redZone.timer -= dt;
+    if (!redZone.active && redZone.timer <= 0) {
+        redZone.active = true;
+        redZone.timer = 22;
+        redZone.x = safeZone.x + (Math.random() - 0.5) * safeZone.r * 0.8;
+        redZone.y = safeZone.y + (Math.random() - 0.5) * safeZone.r * 0.8;
+        document.getElementById('zoneAlert').style.display = 'block';
+    } else if (redZone.active) {
+        redZone.x += redZone.vx * dt;
+        redZone.y += redZone.vy * dt;
+        redZone.bombTimer -= dt;
+        if (redZone.bombTimer <= 0) {
+            redZone.bombTimer = 1.4;
+            const bx = redZone.x + (Math.random() - 0.5) * redZone.r * 1.4;
+            const by = redZone.y + (Math.random() - 0.5) * redZone.r * 1.4;
+            triggerExplosion(bx, by, 140, 18, null);
+        }
+        if (redZone.timer <= 0) {
+            redZone.active = false;
+            redZone.timer = 55;
+            document.getElementById('zoneAlert').style.display = 'none';
+        }
+    }
+
+    // تحديث المقاتلين
+    for (const f of fighters) {
+        if (f.dead) continue;
+        if (f.fireCooldown > 0) f.fireCooldown -= dt;
+        if (f.meleeAnim > 0) f.meleeAnim -= dt;
+
+        if (f.reloadTimer > 0) {
+            f.reloadTimer -= dt;
+            if (f.reloadTimer <= 0 && f.activeSlot <= 1 && f.slots[f.activeSlot]) {
+                const slot = f.slots[f.activeSlot];
+                const gun = GUNS[slot.id];
+                const needed = gun.magSize - slot.ammoInMag;
+                const avail = Math.min(needed, f.ammo[gun.ammoType] || 0);
+                slot.ammoInMag += avail;
+                f.ammo[gun.ammoType] = (f.ammo[gun.ammoType] || 0) - avail;
+                if (f.isPlayer) updateHUD();
+            }
+        }
+
+        // ضرر خارج الزون
+        if (Math.hypot(f.x - safeZone.x, f.y - safeZone.y) > safeZone.r) {
+            applyDamage(f, 6 * dt, null);
+        }
+
+        if (f.isPlayer) {
+            let mx = 0, my = 0;
+            if (keys['KeyW'] || keys['ArrowUp']) my -= 1;
+            if (keys['KeyS'] || keys['ArrowDown']) my += 1;
+            if (keys['KeyA'] || keys['ArrowLeft']) mx -= 1;
+            if (keys['KeyD'] || keys['ArrowRight']) mx += 1;
+
+            if (Math.hypot(touchState.moveX, touchState.moveY) > 0.05) {
+                mx = touchState.moveX;
+                my = touchState.moveY;
+            } else if (mx !== 0 || my !== 0) {
+                const len = Math.hypot(mx, my);
+                mx /= len; my /= len;
+            }
+
+            const speed = 290;
+            f.x += mx * speed * dt;
+            f.y += my * speed * dt;
+
+            if (!document.body.classList.contains('android-mode')) {
+                f.angle = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
+                if (mouse.down) window.triggerAttack(f);
+            } else if (touchState.firing) {
+                window.triggerAttack(f);
+            }
+
+            // التقاط تلقائي للذخيرة والإسعافات عند المرور عليها
+            for (let i = lootItems.length - 1; i >= 0; i--) {
+                const it = lootItems[i];
+                if ((it.kind === 'ammo' || it.kind === 'medkit' || it.kind === 'grenade' || it.kind === 'armor') &&
+                    Math.hypot(f.x - it.x, f.y - it.y) <= f.r + it.r + 6) {
+                    pickupNearbyLoot(f);
+                }
+            }
+        } else if (!f.isRemoteFriend) {
+            // ذكاء اصطناعي للبوتات
+            updateBotAI(f, dt);
+        }
+
+        resolveEntityCollisions(f);
+    }
+
+    // تحديث الرصاص بتتبع مسار مستمر لمنع اختراق الجدران
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.life -= dt;
+        if (b.life <= 0) {
+            bullets.splice(i, 1);
+            continue;
+        }
+
+        const steps = 6;
+        const stepDt = dt / steps;
+        let hitSomething = false;
+
+        for (let s = 0; s < steps; s++) {
+            b.x += b.vx * stepDt;
+            b.y += b.vy * stepDt;
+
+            // فحص الجدران والنوافذ
+            for (const bld of buildings) {
+                for (const w of bld.walls) {
+                    if (pointInRect(b.x, b.y, w)) {
+                        hitSomething = true;
+                        break;
+                    }
+                }
+                if (hitSomething) break;
+
+                // النوافذ تسمح بمرور الرصاص وتتحطم!
+                for (const win of bld.windows) {
+                    if (!win.broken && pointInRect(b.x, b.y, win)) {
+                        win.broken = true;
+                        playSound('glass');
+                        for (let g = 0; g < 8; g++) {
+                            particles.push({
+                                x: b.x, y: b.y,
+                                vx: (Math.random() - 0.5) * 220,
+                                vy: (Math.random() - 0.5) * 220,
+                                life: 0.4, color: '#bae6fd', r: 3
+                            });
+                        }
+                    }
+                }
+            }
+            if (hitSomething) break;
+
+            // فحص العوائق
+            for (let oi = obstacles.length - 1; oi >= 0; oi--) {
+                const obs = obstacles[oi];
+                if (Math.hypot(b.x - obs.x, b.y - obs.y) <= obs.r) {
+                    damageObstacle(oi, b.damage);
+                    hitSomething = true;
+                    break;
+                }
+            }
+            if (hitSomething) break;
+
+            // فحص إصابة المقاتلين
+            for (const target of fighters) {
+                if (target.dead || target.id === b.ownerId) continue;
+                if (Math.hypot(b.x - target.x, b.y - target.y) <= target.r) {
+                    const attacker = fighters.find(x => x.id === b.ownerId);
+                    applyDamage(target, b.damage, attacker);
+                    hitSomething = true;
+                    break;
+                }
+            }
+            if (hitSomething) break;
+        }
+
+        if (hitSomething) {
+            bullets.splice(i, 1);
+        }
+    }
+
+    // تحديث القنابل والدخان
+    for (let i = grenades.length - 1; i >= 0; i--) {
+        const g = grenades[i];
+        g.x += g.vx * dt;
+        g.y += g.vy * dt;
+        g.vx *= 0.94;
+        g.vy *= 0.94;
+        g.timer -= dt;
+        if (g.timer <= 0) {
+            if (g.type === 'frag') {
+                const owner = fighters.find(x => x.id === g.ownerId);
+                triggerExplosion(g.x, g.y, 190, 95, owner);
+            } else {
+                smokes.push({ x: g.x, y: g.y, r: 165, life: 12 });
+            }
+            grenades.splice(i, 1);
+        }
+    }
+
+    for (let i = smokes.length - 1; i >= 0; i--) {
+        smokes[i].life -= dt;
+        if (smokes[i].life <= 0) smokes.splice(i, 1);
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+function triggerExplosion(x, y, radius, maxDmg, attacker) {
+    playSound('explosion');
+    for (let i = 0; i < 22; i++) {
+        particles.push({
+            x, y,
+            vx: (Math.random() - 0.5) * 450,
+            vy: (Math.random() - 0.5) * 450,
+            life: 0.55, color: i % 2 === 0 ? '#f97316' : '#facc15', r: 8
+        });
+    }
+    for (const f of fighters) {
+        if (f.dead) continue;
+        const d = Math.hypot(f.x - x, f.y - y);
+        if (d <= radius) {
+            const factor = 1 - d / radius;
+            applyDamage(f, maxDmg * factor, attacker);
+        }
+    }
+}
+
+function updateBotAI(bot, dt) {
+    bot.aiTimer -= dt;
+    let nearestTarget = null;
+    let minDist = 620;
+
+    for (const other of fighters) {
+        if (other.dead || other.id === bot.id) continue;
+        const d = Math.hypot(other.x - bot.x, other.y - bot.y);
+        if (d < minDist) {
+            minDist = d;
+            nearestTarget = other;
+        }
+    }
+
+    if (nearestTarget) {
+        bot.angle = Math.atan2(nearestTarget.y - bot.y, nearestTarget.x - bot.x);
+        if (minDist > 240) {
+            bot.x += Math.cos(bot.angle) * 210 * dt;
+            bot.y += Math.sin(bot.angle) * 210 * dt;
+        }
+        if (bot.slots[0] && bot.slots[0].ammoInMag <= 0) {
+            bot.slots[0].ammoInMag = GUNS[bot.slots[0].id].magSize;
+        }
+        window.triggerAttack(bot);
+    } else {
+        const distToCenter = Math.hypot(bot.x - safeZone.x, bot.y - safeZone.y);
+        if (distToCenter > safeZone.r * 0.85) {
+            bot.aiMoveAngle = Math.atan2(safeZone.y - bot.y, safeZone.x - bot.x);
+        } else if (bot.aiTimer <= 0) {
+            bot.aiTimer = 1.5 + Math.random() * 2;
+            bot.aiMoveAngle = Math.random() * Math.PI * 2;
+        }
+        bot.angle = bot.aiMoveAngle;
+        bot.x += Math.cos(bot.aiMoveAngle) * 190 * dt;
+        bot.y += Math.sin(bot.aiMoveAngle) * 190 * dt;
+    }
+}
+
+// ================= الرسم على الشاشة والخريطة المصغرة =================
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const camX = player ? player.x : MAP_SIZE / 2;
+    const camY = player ? player.y : MAP_SIZE / 2;
+
+    ctx.save();
+    ctx.translate(canvas.width / 2 - camX, canvas.height / 2 - camY);
+
+    // أرضية العشب بأسلوب Surviv.io
+    ctx.fillStyle = '#80af49';
+    ctx.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
+
+    // شبكة المربعات التكتيكية
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+    ctx.lineWidth = 2;
+    const gridStep = 160;
+    const startX = Math.floor((camX - canvas.width) / gridStep) * gridStep;
+    const endX = camX + canvas.width;
+    const startY = Math.floor((camY - canvas.height) / gridStep) * gridStep;
+    const endY = camY + canvas.height;
+
+    ctx.beginPath();
+    for (let x = Math.max(0, startX); x <= Math.min(MAP_SIZE, endX); x += gridStep) {
+        ctx.moveTo(x, Math.max(0, startY));
+        ctx.lineTo(x, Math.min(MAP_SIZE, endY));
+    }
+    for (let y = Math.max(0, startY); y <= Math.min(MAP_SIZE, endY); y += gridStep) {
+        ctx.moveTo(Math.max(0, startX), y);
+        ctx.lineTo(Math.min(MAP_SIZE, endX), y);
+    }
+    ctx.stroke();
+
+    // رسم المباني والأرضيات والجدران والنوافذ
+    for (const b of buildings) {
+        if (Math.abs(b.x - camX) > canvas.width + 600 || Math.abs(b.y - camY) > canvas.height + 600) continue;
+
+        ctx.fillStyle = b.floorColor;
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+
+        // خطوط ألواح الأرضية
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        ctx.lineWidth = 2;
+        for (let fy = b.y + 30; fy < b.y + b.h; fy += 30) {
+            ctx.beginPath();
+            ctx.moveTo(b.x, fy);
+            ctx.lineTo(b.x + b.w, fy);
+            ctx.stroke();
+        }
+
+        // الجدران
+        ctx.fillStyle = '#1e293b';
+        for (const w of b.walls) {
+            ctx.fillRect(w.x, w.y, w.w, w.h);
+        }
+
+        // النوافذ الزجاجية
+        for (const win of b.windows) {
+            if (!win.broken) {
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(win.x, win.y, win.w, win.h);
+            } else {
+                ctx.strokeStyle = '#94a3b8';
+                ctx.strokeRect(win.x, win.y, win.w, win.h);
+            }
+        }
+    }
+
+    // رسم اللوت على الأرض
+    for (const item of lootItems) {
+        if (Math.abs(item.x - camX) > canvas.width || Math.abs(item.y - camY) > canvas.height) continue;
+        drawLootItem(item);
+    }
+
+    // رسم العوائق (صناديق، صخور، أشجار)
+    for (const obs of obstacles) {
+        if (Math.abs(obs.x - camX) > canvas.width || Math.abs(obs.y - camY) > canvas.height) continue;
+        if (obs.type === 'tree') {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            ctx.beginPath();
+            ctx.arc(obs.x + 5, obs.y + 6, obs.r, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#3f6212';
+            ctx.beginPath();
+            ctx.arc(obs.x, obs.y, obs.r, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#4d7c0f';
+            ctx.beginPath();
+            ctx.arc(obs.x - 4, obs.y - 4, obs.r * 0.72, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (obs.type === 'rock') {
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.arc(obs.x, obs.y, obs.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        } else {
+            ctx.fillStyle = '#92400e';
+            ctx.fillRect(obs.x - obs.r, obs.y - obs.r, obs.r * 2, obs.r * 2);
+            ctx.strokeStyle = '#451a03';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(obs.x - obs.r, obs.y - obs.r, obs.r * 2, obs.r * 2);
+        }
+    }
+
+    // رسم المقاتلين
+    for (const f of fighters) {
+        if (f.dead) continue;
+        if (Math.abs(f.x - camX) > canvas.width || Math.abs(f.y - camY) > canvas.height) continue;
+        drawFighter(f);
+    }
+
+    // رسم الرصاص
+    for (const b of bullets) {
+        ctx.fillStyle = b.color;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // رسم القنابل والدخان
+    for (const g of grenades) {
+        ctx.fillStyle = g.type === 'frag' ? '#1e293b' : '#cbd5e1';
+        ctx.beginPath();
+        ctx.arc(g.x, g.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    for (const s of smokes) {
+        ctx.fillStyle = `rgba(226, 232, 240, ${Math.min(0.82, s.life * 0.15)})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // الجسيمات
+    for (const p of particles) {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // رسم دائرة المنطقة الآمنة ومنطقة القصف
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)';
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(safeZone.x, safeZone.y, safeZone.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    if (redZone.active) {
+        ctx.fillStyle = 'rgba(220, 38, 38, 0.22)';
+        ctx.beginPath();
+        ctx.arc(redZone.x, redZone.y, redZone.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = 5;
+        ctx.stroke();
+    }
+
+    ctx.restore();
+    drawMinimap();
+}
+
+function drawMinimap() {
+    if (!minimapCtx) return;
+    const mw = minimapCanvas.width;
+    const mh = minimapCanvas.height;
+    const scale = mw / MAP_SIZE;
+
+    minimapCtx.clearRect(0, 0, mw, mh);
+    minimapCtx.fillStyle = '#1f2d18';
+    minimapCtx.fillRect(0, 0, mw, mh);
+
+    // رسم المباني على الخريطة المصغرة
+    for (const b of buildings) {
+        if (b.specialType === 'sniper_mansion') {
+            minimapCtx.fillStyle = '#facc15';
+            minimapCtx.fillRect(b.x * scale - 2, b.y * scale - 2, Math.max(6, b.w * scale + 4), Math.max(6, b.h * scale + 4));
+        } else if (b.specialType === 'heavy_bunker') {
+            minimapCtx.fillStyle = '#ef4444';
+            minimapCtx.fillRect(b.x * scale - 2, b.y * scale - 2, Math.max(6, b.w * scale + 4), Math.max(6, b.h * scale + 4));
+        } else {
+            minimapCtx.fillStyle = 'rgba(226, 232, 240, 0.35)';
+            minimapCtx.fillRect(b.x * scale, b.y * scale, Math.max(3, b.w * scale), Math.max(3, b.h * scale));
+        }
+    }
+
+    // المنطقة الآمنة
+    minimapCtx.strokeStyle = '#f87171';
+    minimapCtx.lineWidth = 1.5;
+    minimapCtx.beginPath();
+    minimapCtx.arc(safeZone.x * scale, safeZone.y * scale, safeZone.r * scale, 0, Math.PI * 2);
+    minimapCtx.stroke();
+
+    // المقاتلون
+    for (const f of fighters) {
+        if (f.dead) continue;
+        minimapCtx.fillStyle = f.isPlayer ? '#a3e635' : (f.isRemoteFriend ? '#38bdf8' : '#ef4444');
+        minimapCtx.beginPath();
+        minimapCtx.arc(f.x * scale, f.y * scale, f.isPlayer ? 3.5 : 2, 0, Math.PI * 2);
+        minimapCtx.fill();
+    }
+}
+
+function drawGunModel(ctx, gun, xOffset, yOffset, scale = 1) {
+    ctx.save();
+    ctx.translate(xOffset, yOffset);
+    ctx.scale(scale, scale);
+
+    // الأخمص / المقبض الخلفي
+    ctx.fillStyle = gun.stockColor;
+    ctx.fillRect(-6, -gun.width * 0.55, 11, gun.width * 1.1);
+
+    // جسم السلاح والسبطانة
+    ctx.fillStyle = gun.bodyColor;
+    ctx.fillRect(4, -gun.width * 0.5, gun.len - 4, gun.width);
+
+    // فوهة السلاح
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(gun.len - 4, -gun.width * 0.35, 5, gun.width * 0.7);
+
+    // مخزن الذخيرة
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(gun.len * 0.42, gun.width * 0.45, 7, 9);
+
+    // منظار للقناصات والأسلحة الثقيلة
+    if (gun.id === 'mosin' || gun.id === 'awms' || gun.id === 'm249') {
+        ctx.fillStyle = gun.id === 'awms' ? '#facc15' : '#0f172a';
+        ctx.fillRect(gun.len * 0.35, -gun.width * 0.95, 14, 4);
+    }
+
+    ctx.restore();
+}
+
+function drawLootItem(item) {
+    let ringColor = '#94a3b8';
+    let label = item.id;
+
+    if (item.kind === 'gun') {
+        const g = GUNS[item.id];
+        ringColor = AMMO_COLORS[g.ammoType] || '#facc15';
+        label = `${g.name} [${g.ammoType}]`;
+    } else if (item.kind === 'ammo') {
+        ringColor = AMMO_COLORS[item.id] || '#fff';
+        label = `${item.id} ×${item.amount}`;
+    } else if (item.kind === 'medkit') {
+        ringColor = '#22c55e';
+        label = '🩹 إسعاف';
+    } else if (item.kind === 'armor') {
+        ringColor = '#38bdf8';
+        label = '🛡️ درع';
+    } else if (item.kind === 'grenade') {
+        ringColor = '#f97316';
+        label = item.id === 'frag' ? '💣 قنبلة' : '🌫️ دخان';
+    } else if (item.kind === 'melee') {
+        ringColor = '#e2e8f0';
+        label = `⚔️ ${MELEE_WEAPONS[item.id].name}`;
+    }
+
+    // ظل اللوت
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
+    ctx.beginPath();
+    ctx.arc(item.x + 2, item.y + 3, item.r + 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // دائرة اللوت الملونة حسب نوع الذخيرة
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+    ctx.beginPath();
+    ctx.arc(item.x, item.y, item.r + 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = ringColor;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // رسم مجسم السلاح الواقعي داخل دائرة اللوت
+    if (item.kind === 'gun') {
+        const g = GUNS[item.id];
+        drawGunModel(ctx, g, item.x - (g.len * 0.35), item.y, 0.72);
+    } else if (item.kind === 'ammo') {
+        ctx.fillStyle = ringColor;
+        ctx.fillRect(item.x - 8, item.y - 5, 5, 10);
+        ctx.fillRect(item.x - 1, item.y - 5, 5, 10);
+        ctx.fillRect(item.x + 6, item.y - 5, 5, 10);
+    }
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, item.x, item.y + item.r + 15);
+}
+
+function drawFighter(f) {
+    ctx.save();
+    ctx.translate(f.x, f.y);
+
+    // ظل واقعي تحت المقاتل
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+    ctx.beginPath();
+    ctx.arc(3, 4, f.r + 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // الاسم وشريط الصحة فوق اللاعب
+    ctx.fillStyle = f.isRemoteFriend ? '#38bdf8' : '#fff';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText((f.isRemoteFriend ? '🤝 ' : '') + f.name, 0, -34);
+
+    if (!f.isPlayer) {
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(-20, -28, 40, 5);
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(-20, -28, 40 * (f.hp / f.maxHp), 5);
+    }
+
+    ctx.rotate(f.angle);
+
+    // حقيبة الظهر الدائرية بتفصيل حزام
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.arc(-14, 0, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // الجسم الأساسي والملابس
+    ctx.fillStyle = f.outfitColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, f.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // درع الصدر
+    if (f.armor > 0) {
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, f.r - 4, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    // الخوذة
+    if (f.hasHelmet) {
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(0, 0, 11, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // السلاح التفصيلي واليدين بأسلوب واقعي
+    const punchOffset = f.meleeAnim > 0 ? 12 : 0;
+    if (f.activeSlot <= 1 && f.slots[f.activeSlot]) {
+        const gun = GUNS[f.slots[f.activeSlot].id];
+        drawGunModel(ctx, gun, 12, 0, 1);
+    } else if (f.activeSlot === 2 && f.slots[2] && f.slots[2].id !== 'fists') {
+        const melee = MELEE_WEAPONS[f.slots[2].id];
+        ctx.fillStyle = melee.color;
+        ctx.fillRect(14 + punchOffset, -3, melee.range * 0.55, 5);
+    }
+
+    // اليدان
+    ctx.fillStyle = '#f3d2b3';
+    ctx.beginPath();
+    ctx.arc(16 + punchOffset, 12, 7, 0, Math.PI * 2);
+    ctx.arc(18, -11, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+// ================= تحديث واجهة HUD =================
+function updateHUD() {
+    if (!player) return;
+    document.getElementById('hpBar').style.width = `${(player.hp / player.maxHp) * 100}%`;
+    document.getElementById('armorBar').style.width = `${(player.armor / player.maxArmor) * 100}%`;
+    document.getElementById('killCount').textContent = player.kills;
+    document.getElementById('aliveCount').textContent = fighters.filter(f => !f.dead).length;
+
+    document.getElementById('ammo9').textContent = `9mm:${player.ammo['9mm']}`;
+    document.getElementById('ammo762').textContent = `7.62:${player.ammo['762']}`;
+    document.getElementById('ammo556').textContent = `5.56:${player.ammo['556']}`;
+    document.getElementById('ammo12').textContent = `12G:${player.ammo['12g']}`;
+
+    const s0 = player.slots[0] ? GUNS[player.slots[0].id] : null;
+    const s1 = player.slots[1] ? GUNS[player.slots[1].id] : null;
+    const s2 = MELEE_WEAPONS[player.slots[2].id] || MELEE_WEAPONS.fists;
+
+    document.getElementById('slot0').innerHTML = s0 ? `🔫 <span>${s0.name} (${player.slots[0].ammoInMag})</span>` : '➖ <span>فارغ</span>';
+    document.getElementById('slot1').innerHTML = s1 ? `🔫 <span>${s1.name} (${player.slots[1].ammoInMag})</span>` : '➖ <span>فارغ</span>';
+    document.getElementById('slot2').innerHTML = `⚔️ <span>${s2.name}</span>`;
+    const gIcon = player.grenadeType === 'smoke' ? '🌫️' : '💣';
+    const gCount = player.grenades[player.grenadeType] || 0;
+    document.getElementById('slot3').innerHTML = `${gIcon} <span>${gCount}</span>`;
+    document.getElementById('slot4').innerHTML = `🩹 <span>${player.medkits}</span>`;
+
+    document.querySelectorAll('.weapon-slot').forEach((el, idx) => {
+        el.classList.toggle('active', player.activeSlot === idx);
+    });
+}
+
+// ================= بدء وإنهاء المباراة =================
+function startGame() {
+    initAudio();
+    generateWorld();
+
+    fighters = [];
+    const nameInput = document.getElementById('playerNameInput');
+    const pName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : 'أنت';
+
+    const pSpawn = getSpreadSpawnPoint(fighters);
+    player = createFighter('local_player', pName, pSpawn.x, pSpawn.y, true);
+    fighters.push(player);
+
+    for (let i = 0; i < BOT_COUNT; i++) {
+        const sp = getSpreadSpawnPoint(fighters);
+        const bName = BOT_NAMES[i % BOT_NAMES.length];
+        fighters.push(createFighter('bot_' + i, bName, sp.x, sp.y, false));
+    }
+
+    safeZone = { x: MAP_SIZE / 2, y: MAP_SIZE / 2, r: MAP_SIZE * 0.72, timer: 45 };
+    redZone.active = false;
+    redZone.timer = 55;
+
+    document.getElementById('startScreen').style.display = 'none';
+    document.getElementById('endScreen').style.display = 'none';
+    document.getElementById('hud').style.display = 'block';
+    gameState = 'PLAYING';
+    updateHUD();
+}
+
+function checkGameEnd() {
+    if (gameState !== 'PLAYING') return;
+    const alive = fighters.filter(f => !f.dead);
+
+    if (player && player.dead) {
+        showEndScreen(false, alive.length + 1);
+    } else if (alive.length === 1 && alive[0].isPlayer) {
+        showEndScreen(true, 1);
+    }
+}
+
+function showEndScreen(won, rank) {
+    gameState = 'ENDED';
+    document.getElementById('hud').style.display = 'none';
+    document.getElementById('endScreen').style.display = 'flex';
+    document.getElementById('endTitle').textContent = won ? '🏆 النصر الملكي! المركز #1' : `💀 تم القضاء عليك • المركز #${rank}`;
+    document.getElementById('endStats').innerHTML = `عدد القتلى: <strong>${player.kills}</strong>`;
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+    if (!window.hasActiveMultiplayerRoom) {
+        MAP_SIZE = 16000;
+        BOT_COUNT = 59;
+    }
+    startGame();
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+    document.getElementById('endScreen').style.display = 'none';
+    document.getElementById('startScreen').style.display = 'flex';
+    gameState = 'MENU';
+});
+
+function gameLoop(now) {
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+
+// ================= نظام اللعب الجماعي المباشر (1 ضد 1 مع رابط دعوة) =================
+(function initMultiplayerSystem() {
+    const ROOM_PREFIX = 'survev-duel-room-';
+    let peer = null;
+    let connections = [];
+    let currentRoomCode = '';
+    let isRoomHost = false;
+    let syncInterval = null;
+    window.hasActiveMultiplayerRoom = false;
+
+    const statusEl = document.getElementById('mpStatusText');
+    const roomInput = document.getElementById('roomCodeInput');
+    const nameInput = document.getElementById('playerNameInput');
+    const copyBtn = document.getElementById('copyCodeBtn');
+    const inviteLinkBox = document.getElementById('inviteLinkBox');
+    const inviteLinkInput = document.getElementById('inviteLinkInput');
+    const copyLinkBtn = document.getElementById('copyLinkBtn');
+    const createRoomBtn = document.getElementById('createRoomBtn');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const startBtn = document.getElementById('startBtn');
+
+    function getPlayerDisplayName() {
+        const val = nameInput ? nameInput.value.trim() : '';
+        return val || 'مقاتل_' + Math.floor(100 + Math.random() * 899);
+    }
+
+    function setMpStatus(msg) {
+        if (statusEl) statusEl.textContent = msg;
+    }
+
+    function buildInviteUrl(code) {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('room', code);
+            return url.toString();
+        } catch (e) {
+            return `${window.location.href.split('?')[0]}?room=${code}`;
+        }
+    }
+
+    function updateStartButtonRole() {
+        if (!startBtn) return;
+        if (window.hasActiveMultiplayerRoom && !isRoomHost) {
+            startBtn.disabled = true;
+            startBtn.textContent = '⏳ في انتظار منشئ الغرفة ليبدأ...';
+            startBtn.style.opacity = '0.6';
+            startBtn.style.cursor = 'not-allowed';
+        } else {
+            startBtn.disabled = false;
+            startBtn.textContent = 'ابدأ المعركة الآن ⚔️';
+            startBtn.style.opacity = '1';
+            startBtn.style.cursor = 'pointer';
+        }
+    }
+
+    function cleanupPeer() {
+        if (syncInterval) clearInterval(syncInterval);
+        connections.forEach(c => { try { c.close(); } catch (e) {} });
+        connections = [];
+        if (peer) { try { peer.destroy(); } catch (e) {} }
+        peer = null;
+        isRoomHost = false;
+        window.hasActiveMultiplayerRoom = false;
+        if (inviteLinkBox) inviteLinkBox.style.display = 'none';
+        updateStartButtonRole();
+    }
+
+    // إرسال حدث إطلاق النار الفعلي لصديقك فقط عند الضغط على الزناد
+    const originalTriggerAttack = window.triggerAttack;
+    window.triggerAttack = function(ent) {
+        const prevCooldown = ent ? ent.fireCooldown : 0;
+        originalTriggerAttack(ent);
+        if (ent && ent.isPlayer && ent.fireCooldown > prevCooldown && connections.length > 0) {
+            const activeGun = ent.slots[ent.activeSlot];
+            const firePayload = {
+                type: 'fire_event',
+                id: peer ? peer.id : 'local',
+                x: Math.round(ent.x),
+                y: Math.round(ent.y),
+                angle: Number(ent.angle.toFixed(3)),
+                activeSlot: ent.activeSlot,
+                gunId: (activeGun && activeGun.id && GUNS[activeGun.id]) ? activeGun.id : 'm9',
+                grenadeType: ent.grenadeType
+            };
+            connections.forEach(c => { if (c.open) c.send(firePayload); });
+        }
+    };
+
+    if (createRoomBtn) {
+        createRoomBtn.addEventListener('click', () => {
+            if (typeof Peer === 'undefined') {
+                setMpStatus('⚠️ تأكد من اتصالك بالإنترنت لتحميل مكتبة اللعب الجماعي.');
+                return;
+            }
+            cleanupPeer();
+            setMpStatus('⏳ جاري إنشاء غرفة المواجهة الخاصة...');
+
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            currentRoomCode = code;
+            isRoomHost = true;
+            window.hasActiveMultiplayerRoom = true;
+            updateStartButtonRole();
+            if (roomInput) roomInput.value = code;
+
+            try {
+                peer = new Peer(ROOM_PREFIX + code, { debug: 0 });
+            } catch (e) {
+                setMpStatus('⚠️ تعذر تهيئة الاتصال، حاول مرة أخرى.');
+                return;
+            }
+
+            peer.on('open', () => {
+                if (copyBtn) copyBtn.style.display = 'inline-block';
+                if (inviteLinkBox && inviteLinkInput) {
+                    inviteLinkInput.value = buildInviteUrl(code);
+                    inviteLinkBox.style.display = 'block';
+                }
+                setMpStatus(`✅ غرفتك الخاصة [${code}] جاهزة! انسخ الرابط وأرسله لصديقك`);
+            });
+
+            peer.on('connection', (conn) => {
+                if (conn) setupConnection(conn);
+            });
+
+            peer.on('error', (err) => {
+                if (err && err.type === 'unavailable-id') {
+                    createRoomBtn.click();
+                } else {
+                    setMpStatus('⚠️ حدث خطأ في الاتصال، حاول إنشاء الغرفة مرة أخرى.');
+                }
+            });
+        });
+    }
+
+    function joinRoomByCode(code) {
+        if (!code) {
+            setMpStatus('⚠️ اكتب رمز الغرفة التي أنشأها صديقك أولاً!');
+            return;
+        }
+        if (typeof Peer === 'undefined') {
+            setMpStatus('⚠️ تأكد من اتصالك بالإنترنت.');
+            return;
+        }
+        cleanupPeer();
+        setMpStatus(`⏳ جاري الاتصال بغرفة صديقك [${code}]...`);
+
+        currentRoomCode = code;
+        isRoomHost = false;
+        window.hasActiveMultiplayerRoom = true;
+        updateStartButtonRole();
+        if (roomInput) roomInput.value = code;
+
+        try {
+            peer = new Peer(undefined, { debug: 0 });
+        } catch (e) {
+            setMpStatus('⚠️ تعذر الاتصال بالخادم، حاول مرة أخرى.');
+            return;
+        }
+
+        peer.on('open', () => {
+            if (!peer) return;
+            const conn = peer.connect(ROOM_PREFIX + code, { reliable: true });
+            if (conn) setupConnection(conn);
+        });
+
+        peer.on('error', () => {
+            setMpStatus(`❌ تعذر العثور على الغرفة [${code}]! تأكد أن صديقك أنشأها أولاً.`);
+        });
+    }
+
+    if (joinRoomBtn) {
+        joinRoomBtn.addEventListener('click', () => {
+            joinRoomByCode(roomInput ? roomInput.value.trim() : '');
+        });
+    }
+
+    function setupConnection(conn) {
+        conn.on('open', () => {
+            if (!connections.includes(conn)) connections.push(conn);
+            if (copyBtn) copyBtn.style.display = 'inline-block';
+            conn.send({ type: 'hello', id: peer.id, name: getPlayerDisplayName() });
+
+            if (isRoomHost) {
+                setMpStatus(`🎉 صديقك انضم للغرفة [${currentRoomCode}]! اضغط "ابدأ المعركة الآن ⚔️"`);
+            } else {
+                setMpStatus(`✅ تم الانضمام للغرفة [${currentRoomCode}]! بانتظار أن يبدأ منشئ الغرفة...`);
+            }
+        });
+
+        conn.on('data', (data) => {
+            if (!data || typeof data !== 'object') return;
+            if (data.type === 'hello') {
+                if (isRoomHost && gameState === 'MENU') {
+                    setMpStatus(`🎉 انضم "${data.name}" للغرفة [${currentRoomCode}]! اضغط "ابدأ المعركة الآن ⚔️"`);
+                }
+            } else if (data.type === 'world_sync') {
+                applySharedWorldSnapshot(data);
+            } else if (data.type === 'fire_event') {
+                executeRemoteFire(data);
+            } else if (data.type === 'state') {
+                syncRemotePlayerEntity(data);
+            }
+        });
+
+        conn.on('close', () => {
+            connections = connections.filter(c => c !== conn);
+            if (gameState === 'MENU') setMpStatus(`⚠️ انقطع الاتصال بالغرفة [${currentRoomCode}].`);
+        });
+    }
+
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+            if (!currentRoomCode || !roomInput) return;
+            roomInput.select();
+            document.execCommand('copy');
+            setMpStatus(`📋 تم نسخ الرمز [${currentRoomCode}]!`);
+        });
+    }
+
+    if (copyLinkBtn) {
+        copyLinkBtn.addEventListener('click', () => {
+            if (!inviteLinkInput) return;
+            inviteLinkInput.select();
+            document.execCommand('copy');
+            setMpStatus(`🔗 تم نسخ رابط الدعوة! أرسله لصديقك ليدخل الغرفة مباشرة.`);
+        });
+    }
+
+    // الانضمام التلقائي من الرابط ?room=XXXX
+    try {
+        const autoRoomCode = new URLSearchParams(window.location.search).get('room');
+        if (autoRoomCode && /^\d{4}$/.test(autoRoomCode.trim())) {
+            setTimeout(() => joinRoomByCode(autoRoomCode.trim()), 400);
+        }
+    } catch (e) {}
+
+    function ensureRemoteFighter(id, name, x, y) {
+        let remote = fighters.find(f => f.id === id);
+        if (!remote) {
+            remote = createFighter(id, name || 'صديقك', x, y, false);
+            remote.isRemoteFriend = true;
+            remote.outfitColor = '#0284c7';
+            fighters.push(remote);
+            updateHUD();
+        }
+        return remote;
+    }
+
+    function executeRemoteFire(data) {
+        if (gameState !== 'PLAYING' || !data.id) return;
+        const remote = ensureRemoteFighter(data.id, 'صديقك', data.x, data.y);
+        if (!remote || remote.dead) return;
+        remote.x = data.x;
+        remote.y = data.y;
+        remote.angle = data.angle;
+        remote.activeSlot = data.activeSlot || 0;
+        remote.fireCooldown = 0;
+        remote.reloadTimer = 0;
+        if (remote.activeSlot <= 1 && data.gunId && GUNS[data.gunId]) {
+            remote.slots[remote.activeSlot] = { id: data.gunId, ammoInMag: 99 };
+        }
+        originalTriggerAttack(remote);
+    }
+
+    function syncRemotePlayerEntity(data) {
+        if (gameState !== 'PLAYING' || !data.id) return;
+        const remote = ensureRemoteFighter(data.id, data.name, data.x, data.y);
+        remote.name = data.name || remote.name;
+        remote.x += (data.x - remote.x) * 0.45;
+        remote.y += (data.y - remote.y) * 0.45;
+        remote.angle = data.angle;
+        remote.hp = data.hp;
+        remote.armor = data.armor;
+        remote.dead = data.dead;
+        remote.activeSlot = data.activeSlot;
+        if (data.gunId && GUNS[data.gunId]) {
+            remote.slots[remote.activeSlot <= 1 ? remote.activeSlot : 0] = { id: data.gunId, ammoInMag: 30 };
+        }
+        if (remote.dead) checkGameEnd();
+    }
+
+    function broadcastWorldSnapshot() {
+        if (!isRoomHost || connections.length === 0) return;
+        const snapshot = {
+            type: 'world_sync',
+            mapSize: MAP_SIZE,
+            buildings,
+            obstacles,
+            lootItems,
+            hostPos: { x: Math.round(player.x), y: Math.round(player.y) }
+        };
+        connections.forEach(c => { if (c.open) c.send(snapshot); });
+    }
+
+    function applySharedWorldSnapshot(snapshot) {
+        MAP_SIZE = snapshot.mapSize || 4200;
+        BOT_COUNT = 0;
+
+        if (gameState !== 'PLAYING') {
+            startGame();
+        }
+        buildings = snapshot.buildings || buildings;
+        obstacles = snapshot.obstacles || obstacles;
+        lootItems = snapshot.lootItems || lootItems;
+        fighters = fighters.filter(f => f.isPlayer || f.isRemoteFriend);
+
+        if (player && snapshot.hostPos) {
+            const guestSpawn = getSpreadSpawnPoint([{ x: snapshot.hostPos.x, y: snapshot.hostPos.y }]);
+            player.x = guestSpawn.x;
+            player.y = guestSpawn.y;
+            player.name = getPlayerDisplayName();
+        }
+        startSyncLoop();
+        updateHUD();
+    }
+
+    function startSyncLoop() {
+        if (syncInterval) clearInterval(syncInterval);
+        syncInterval = setInterval(() => {
+            if (gameState !== 'PLAYING' || !player || !peer || connections.length === 0) return;
+            const activeGun = player.slots[player.activeSlot];
+            const payload = {
+                type: 'state',
+                id: peer.id,
+                name: player.name,
+                x: Math.round(player.x),
+                y: Math.round(player.y),
+                angle: Number(player.angle.toFixed(3)),
+                hp: Math.round(player.hp),
+                armor: Math.round(player.armor),
+                dead: player.dead,
+                activeSlot: player.activeSlot,
+                gunId: (activeGun && activeGun.id && GUNS[activeGun.id]) ? activeGun.id : 'm9'
+            };
+            connections.forEach(c => { if (c.open) c.send(payload); });
+        }, 50);
+    }
+
+    if (startBtn) {
+        startBtn.addEventListener('click', () => {
+            if (!window.hasActiveMultiplayerRoom || !isRoomHost) return;
+            MAP_SIZE = 4200;
+            BOT_COUNT = 0;
+            startGame();
+            if (player) player.name = getPlayerDisplayName();
+            broadcastWorldSnapshot();
+            startSyncLoop();
+        });
+    }
+})();
+</script>
+</body>
+</html>
