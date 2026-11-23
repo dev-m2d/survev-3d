@@ -1,0 +1,2389 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>سيرفيف.آيو 2D - معركة البقاء التكتيكية</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #6b963a;
+            font-family: 'Cairo', sans-serif;
+            color: #fff;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        /* طبقة واجهة المستخدم */
+        .hud-layer {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .top-left-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: flex-start;
+        }
+
+        #minimapContainer {
+            width: 130px;
+            height: 130px;
+            background: rgba(15, 25, 15, 0.82);
+            border: 2.5px solid rgba(255, 255, 255, 0.35);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+        }
+
+        #minimapCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .stats-badges {
+            display: flex;
+            gap: 6px;
+        }
+
+        .badge {
+            background: rgba(15, 20, 25, 0.85);
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .badge .num {
+            color: #facc15;
+            font-size: 15px;
+            font-weight: 900;
+        }
+
+        /* اللوحة العلوية اليمنى */
+        .top-right-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .top-buttons {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .hud-btn {
+            background: rgba(15, 20, 25, 0.85);
+            color: #fff;
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
+            padding: 7px 13px;
+            border-radius: 12px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .hud-btn:hover {
+            background: rgba(35, 45, 55, 0.95);
+            border-color: #facc15;
+        }
+
+        .hud-btn.active {
+            background: #16a34a;
+            border-color: #4ade80;
+        }
+
+        #killFeed {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: flex-end;
+            max-width: 260px;
+        }
+
+        .kill-msg {
+            background: rgba(0, 0, 0, 0.72);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            border-right: 3px solid #ef4444;
+            animation: fadeIn 0.2s ease;
+        }
+
+        /* تنبيهات المنتصف */
+        #centerAlert {
+            position: absolute;
+            top: 16%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(220, 38, 38, 0.92);
+            border: 2px solid #fca5a5;
+            padding: 8px 20px;
+            border-radius: 999px;
+            font-size: 15px;
+            font-weight: 900;
+            box-shadow: 0 4px 18px rgba(220, 38, 38, 0.5);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        #lootPrompt {
+            position: absolute;
+            bottom: 130px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.92);
+            border: 1.5px solid #facc15;
+            color: #fef08a;
+            padding: 6px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            display: none;
+            white-space: nowrap;
+        }
+
+        /* شريط الصحة وقائمة الأسلحة (الوضع الافتراضي للكمبيوتر) */
+        .health-bar-wrapper {
+            position: fixed;
+            bottom: 96px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(92vw, 540px);
+            height: 26px;
+            background: rgba(15, 20, 25, 0.88);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 13px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+            z-index: 15;
+        }
+
+        #healthFill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #16a34a, #4ade80);
+            transition: width 0.15s ease, background 0.3s ease;
+        }
+
+        #healthText {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+        }
+
+        .slots-row {
+            position: fixed;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(92vw, 540px);
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            pointer-events: auto;
+            z-index: 20;
+        }
+
+        .slot-card {
+            background: rgba(15, 20, 25, 0.88);
+            border: 2px solid rgba(255, 255, 255, 0.22);
+            border-radius: 13px;
+            padding: 6px 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+
+        .slot-card.active {
+            border-color: #facc15;
+            background: rgba(250, 204, 21, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(250, 204, 21, 0.35);
+        }
+
+        .slot-key {
+            position: absolute;
+            top: 3px;
+            right: 5px;
+            font-size: 10px;
+            color: #94a3b8;
+            font-weight: 700;
+        }
+
+        .slot-icon {
+            font-size: 19px;
+            line-height: 1.2;
+        }
+
+        .slot-name {
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+
+        .slot-ammo {
+            font-size: 11px;
+            color: #38bdf8;
+            font-weight: 900;
+        }
+
+        /* =========================================================
+           تخصيص وضع الأندرويد (mobile-mode):
+           تثبيت قائمة الأسلحة مباشرة تحت الخريطة المصغرة في أعلى اليسار
+           ========================================================= */
+        body.mobile-mode #minimapContainer {
+            width: 105px;
+            height: 105px;
+        }
+
+        body.mobile-mode .health-bar-wrapper {
+            bottom: 14px;
+            width: min(42vw, 220px);
+            height: 24px;
+        }
+
+        body.mobile-mode #lootPrompt {
+            bottom: 46px;
+            font-size: 12px;
+            padding: 5px 12px;
+        }
+
+        body.mobile-mode .slots-row {
+            position: fixed;
+            left: 10px;
+            top: 152px;
+            bottom: auto;
+            transform: none;
+            width: 146px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 25;
+        }
+
+        body.mobile-mode .slot-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 8px;
+            border-radius: 10px;
+            text-align: right;
+            background: rgba(15, 20, 25, 0.88);
+        }
+
+        body.mobile-mode .slot-card.active {
+            transform: translateX(3px);
+            background: rgba(250, 204, 21, 0.28);
+        }
+
+        body.mobile-mode .slot-icon {
+            font-size: 15px;
+            margin-left: 5px;
+            flex-shrink: 0;
+        }
+
+        body.mobile-mode .slot-name {
+            font-size: 11px;
+            flex: 1;
+            margin-top: 0;
+            text-align: right;
+        }
+
+        body.mobile-mode .slot-ammo {
+            font-size: 10px;
+            margin-right: 4px;
+            flex-shrink: 0;
+        }
+
+        body.mobile-mode .slot-key {
+            display: none;
+        }
+
+        /* عصي التحكم باللمس للأندرويد */
+        .touch-controls {
+            display: none;
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .touch-controls.visible {
+            display: block;
+        }
+
+        .joystick-zone {
+            position: absolute;
+            bottom: 18px;
+            width: 122px;
+            height: 122px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.09);
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #leftStickZone {
+            left: 16px;
+        }
+
+        #rightStickZone {
+            right: 16px;
+            border-color: rgba(239, 68, 68, 0.45);
+            background: rgba(239, 68, 68, 0.09);
+        }
+
+        .joystick-knob {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.88), rgba(203, 213, 225, 0.45));
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+            transform: translate(0px, 0px);
+            pointer-events: none;
+        }
+
+        #rightKnob {
+            background: radial-gradient(circle at 30% 30%, rgba(248, 113, 113, 0.92), rgba(220, 38, 38, 0.55));
+        }
+
+        .touch-action-btns {
+            position: absolute;
+            right: 22px;
+            bottom: 152px;
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .touch-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.86);
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            color: #fff;
+            font-family: 'Cairo', sans-serif;
+            font-size: 11px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+        }
+
+        .touch-btn:active {
+            transform: scale(0.92);
+            background: #facc15;
+            color: #000;
+        }
+
+        /* شاشات البداية والنهاية */
+        .overlay-screen {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(20, 35, 20, 0.85), rgba(10, 15, 12, 0.95));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+            padding: 20px;
+        }
+
+        .menu-card {
+            background: rgba(30, 41, 35, 0.96);
+            border: 2px solid rgba(250, 204, 21, 0.4);
+            border-radius: 24px;
+            padding: 30px 24px;
+            max-width: 490px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+        }
+
+        .game-logo {
+            font-size: 36px;
+            font-weight: 900;
+            color: #facc15;
+            text-shadow: 0 4px 16px rgba(250, 204, 21, 0.35);
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: #cbd5e1;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, #22c55e, #15803d);
+            color: #fff;
+            border: none;
+            padding: 14px 36px;
+            font-size: 20px;
+            font-weight: 900;
+            font-family: 'Cairo', sans-serif;
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            width: 100%;
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(34, 197, 94, 0.55);
+        }
+
+        .controls-guide {
+            margin-top: 18px;
+            background: rgba(15, 23, 20, 0.65);
+            border-radius: 14px;
+            padding: 12px;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.8;
+            text-align: right;
+        }
+
+        .controls-guide strong {
+            color: #f8fafc;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- طبقة واجهة اللاعب -->
+    <div class="hud-layer">
+        <div class="top-left-panel">
+            <div id="minimapContainer">
+                <canvas id="minimapCanvas" width="130" height="130"></canvas>
+            </div>
+            <div class="stats-badges">
+                <div class="badge">👥 <span id="aliveCount" class="num">15</span></div>
+                <div class="badge">🎯 <span id="killsCount" class="num">0</span></div>
+            </div>
+        </div>
+
+        <div class="top-right-panel">
+            <div class="top-buttons">
+                <button id="toggleTouchBtn" class="hud-btn">📱 وضع الأندرويد</button>
+                <button id="soundBtn" class="hud-btn active">🔊 الصوت</button>
+            </div>
+            <div id="killFeed"></div>
+        </div>
+
+        <div id="centerAlert">⚠️ تحذير: منطقة قصف جوي (Red Zone)!</div>
+        <div id="lootPrompt">اضغط [F] لالتقاط العنصر</div>
+
+        <!-- شريط الصحة -->
+        <div class="health-bar-wrapper">
+            <div id="healthFill"></div>
+            <div id="healthText">100 / 100 HP</div>
+        </div>
+
+        <!-- قائمة الأسلحة الخمسة -->
+        <div class="slots-row" id="slotsRow">
+            <div class="slot-card active" id="slot0" onclick="selectSlot(0)">
+                <span class="slot-key">1</span>
+                <div class="slot-icon" id="slot0Icon">🔫</div>
+                <div class="slot-name" id="slot0Name">M9</div>
+                <div class="slot-ammo" id="slot0Ammo">15/30</div>
+            </div>
+            <div class="slot-card" id="slot1" onclick="selectSlot(1)">
+                <span class="slot-key">2</span>
+                <div class="slot-icon" id="slot1Icon">➖</div>
+                <div class="slot-name" id="slot1Name">فارغ</div>
+                <div class="slot-ammo" id="slot1Ammo">--</div>
+            </div>
+            <div class="slot-card" id="slot2" onclick="selectSlot(2)">
+                <span class="slot-key">3</span>
+                <div class="slot-icon" id="slot2Icon">👊</div>
+                <div class="slot-name" id="slot2Name">قبضة</div>
+                <div class="slot-ammo">يدوي</div>
+            </div>
+            <div class="slot-card" id="slot3" onclick="handleGrenadeSlotClick()">
+                <span class="slot-key">4 (مرتين)</span>
+                <div class="slot-icon" id="slot3Icon">💣</div>
+                <div class="slot-name" id="slot3Name">متفجرة</div>
+                <div class="slot-ammo" id="slot3Ammo">1</div>
+            </div>
+            <div class="slot-card" id="slot4" onclick="useMedkit()">
+                <span class="slot-key">5 / H</span>
+                <div class="slot-icon">🩹</div>
+                <div class="slot-name">إسعافات</div>
+                <div class="slot-ammo" id="medkitCount">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- عصي التحكم اللمسية لوضع الأندرويد -->
+    <div class="touch-controls" id="touchControls">
+        <div class="joystick-zone" id="leftStickZone">
+            <div class="joystick-knob" id="leftKnob"></div>
+        </div>
+        <div class="joystick-zone" id="rightStickZone">
+            <div class="joystick-knob" id="rightKnob"></div>
+        </div>
+        <div class="touch-action-btns">
+            <button class="touch-btn" id="touchLootBtn">✋ أخذ</button>
+            <button class="touch-btn" id="touchReloadBtn">🔄 تعبئة</button>
+        </div>
+    </div>
+
+    <!-- شاشة البداية -->
+    <div id="startScreen" class="overlay-screen">
+        <div class="menu-card">
+            <div class="game-logo">SURVIV.IO 2D</div>
+            <p class="subtitle">خريطة عملاقة 6400×6400 • 30 مقاتلاً • تصميم وأسلوب Surviv.io الكلاسيكي الأصلي بالكامل</p>
+            <button id="startBtn" class="primary-btn">ابدأ المعركة الآن ⚔️</button>
+            <div class="controls-guide">
+                <div>💻 <strong>الكمبيوتر:</strong> الحركة (WASD / الأسهم) • التصويب والإطلاق (الماوس) • التقاط (F) • تعبئة (R) • القنابل (4 مرتين للتبديل)</div>
+                <div>📱 <strong>وضع الأندرويد:</strong> العصا اليسرى للحركة • العصا اليمنى للتصويب والإطلاق • اضغط مرتين على خانة القنابل للتبديل بين المتفجرة والدخانية</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة نهاية المباراة -->
+    <div id="endScreen" class="overlay-screen" style="display: none;">
+        <div class="menu-card">
+            <div class="game-logo" id="endTitle">انتهت المعركة!</div>
+            <p class="subtitle" id="endSubtitle">المركز: #1 • القتلى: 0</p>
+            <button id="restartBtn" class="primary-btn">العب مجدداً 🔄</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. الإعدادات الأساسية والثوابت
+        // ==========================================
+        const MAP_SIZE = 6400; // خريطة عملاقة 6400×6400
+        const BOT_COUNT = 29; // 29 بوت + أنت = 30 لاعباً إجمالاً
+        const BOT_DAMAGE_MULTIPLIER = 0.20; // ضرر الأعداء عليك 20% فقط
+        const MIN_SPAWN_DISTANCE = 820; // تباعد كبير بين اللاعبين عند النزول
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const miniCanvas = document.getElementById('minimapCanvas');
+        const miniCtx = miniCanvas.getContext('2d');
+
+        let gameState = 'MENU';
+        let lastTime = 0;
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        // كائنات العالم والكيانات
+        let player = null;
+        let entities = [];
+        let bullets = [];
+        let grenades = [];
+        let smokes = [];
+        let particles = [];
+        let lootItems = [];
+        let obstacles = [];
+        let buildings = [];
+        let dirtPatches = [];
+        let redZones = [];
+        let redZoneTimer = 20;
+        let groundPattern = null;
+        let camera = { x: 0, y: 0 };
+        let zone = { x: MAP_SIZE / 2, y: MAP_SIZE / 2, radius: MAP_SIZE * 0.72, targetRadius: 280, shrinkSpeed: 15 };
+
+        // ==========================================
+        // 2. نظام الصوت التوليدي (Web Audio API)
+        // ==========================================
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+
+                if (type === 'shoot') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(190, now);
+                    osc.frequency.exponentialRampToValueAtTime(45, now + 0.09);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+                    osc.start(now);
+                    osc.stop(now + 0.09);
+                } else if (type === 'sniper') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(140, now);
+                    osc.frequency.exponentialRampToValueAtTime(28, now + 0.22);
+                    gain.gain.setValueAtTime(0.22, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                    osc.start(now);
+                    osc.stop(now + 0.22);
+                } else if (type === 'melee') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(280, now);
+                    osc.frequency.exponentialRampToValueAtTime(90, now + 0.08);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'explosion') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(95, now);
+                    osc.frequency.exponentialRampToValueAtTime(18, now + 0.45);
+                    gain.gain.setValueAtTime(0.32, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                    osc.start(now);
+                    osc.stop(now + 0.45);
+                } else if (type === 'glass') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1450, now);
+                    osc.frequency.exponentialRampToValueAtTime(520, now + 0.12);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'loot') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(840, now + 0.08);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                }
+            } catch (e) {}
+        }
+
+        // ==========================================
+        // 3. نظام التحكم (الكمبيوتر + وضع الأندرويد باللمس)
+        // ==========================================
+        const keys = {};
+        const mouse = { x: 0, y: 0, down: false };
+        let isMobileMode = false;
+        const leftStick = { active: false, id: null, dx: 0, dy: 0 };
+        const rightStick = { active: false, id: null, dx: 0, dy: 0, firing: false };
+        let lastGrenadeClickTime = 0;
+
+        function setMobileMode(enabled) {
+            isMobileMode = enabled;
+            const touchLayer = document.getElementById('touchControls');
+            const toggleBtn = document.getElementById('toggleTouchBtn');
+            if (isMobileMode) {
+                document.body.classList.add('mobile-mode');
+                touchLayer.classList.add('visible');
+                toggleBtn.classList.add('active');
+                toggleBtn.textContent = '📱 وضع الأندرويد (مفعل)';
+            } else {
+                document.body.classList.remove('mobile-mode');
+                touchLayer.classList.remove('visible');
+                toggleBtn.classList.remove('active');
+                toggleBtn.textContent = '📱 وضع الأندرويد';
+            }
+        }
+
+        // تفعيل وضع الأندرويد تلقائياً للهواتف والأجهزة اللوحية
+        const isAndroidOrMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isAndroidOrMobile) {
+            setMobileMode(true);
+        }
+
+        document.getElementById('toggleTouchBtn').addEventListener('click', () => {
+            setMobileMode(!isMobileMode);
+        });
+
+        document.getElementById('soundBtn').addEventListener('click', (e) => {
+            soundEnabled = !soundEnabled;
+            e.target.classList.toggle('active', soundEnabled);
+            e.target.textContent = soundEnabled ? '🔊 الصوت' : '🔇 صامت';
+        });
+
+        window.addEventListener('keydown', (e) => {
+            const code = e.code;
+            keys[code] = true;
+            if (gameState !== 'PLAYING' || !player || !player.alive) return;
+
+            if (code === 'Digit1') selectSlot(0);
+            else if (code === 'Digit2') selectSlot(1);
+            else if (code === 'Digit3') selectSlot(2);
+            else if (code === 'Digit4') handleGrenadeSlotClick();
+            else if (code === 'Digit5' || code === 'KeyH') useMedkit();
+            else if (code === 'KeyR') startReload(player);
+            else if (code === 'KeyF' || code === 'KeyE') pickupNearestLoot(player);
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0 && !isMobileMode) {
+                mouse.down = true;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            mouse.down = false;
+        });
+
+        // إعداد عصي التحكم باللمس لوضع الأندرويد
+        function setupJoystick(zoneId, knobId, stickState, isAimStick) {
+            const zoneEl = document.getElementById(zoneId);
+            const knobEl = document.getElementById(knobId);
+            const maxDist = 42;
+
+            zoneEl.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                stickState.active = true;
+                stickState.id = touch.identifier;
+                updateStick(touch);
+            }, { passive: false });
+
+            zoneEl.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    const touch = e.changedTouches[i];
+                    if (touch.identifier === stickState.id) {
+                        updateStick(touch);
+                    }
+                }
+            }, { passive: false });
+
+            const endTouch = (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === stickState.id) {
+                        stickState.active = false;
+                        stickState.id = null;
+                        stickState.dx = 0;
+                        stickState.dy = 0;
+                        if (isAimStick) stickState.firing = false;
+                        knobEl.style.transform = 'translate(0px, 0px)';
+                    }
+                }
+            };
+
+            zoneEl.addEventListener('touchend', endTouch);
+            zoneEl.addEventListener('touchcancel', endTouch);
+
+            function updateStick(touch) {
+                const rect = zoneEl.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+                const dist = Math.hypot(dx, dy);
+                if (dist > maxDist) {
+                    dx = (dx / dist) * maxDist;
+                    dy = (dy / dist) * maxDist;
+                }
+                knobEl.style.transform = `translate(${dx}px, ${dy}px)`;
+                stickState.dx = dx / maxDist;
+                stickState.dy = dy / maxDist;
+                if (isAimStick && dist > 10) {
+                    stickState.firing = true;
+                } else if (isAimStick) {
+                    stickState.firing = false;
+                }
+            }
+        }
+
+        setupJoystick('leftStickZone', 'leftKnob', leftStick, false);
+        setupJoystick('rightStickZone', 'rightKnob', rightStick, true);
+
+        document.getElementById('touchLootBtn').addEventListener('click', () => {
+            if (player && player.alive) pickupNearestLoot(player);
+        });
+
+        document.getElementById('touchReloadBtn').addEventListener('click', () => {
+            if (player && player.alive) startReload(player);
+        });
+
+        // ==========================================
+        // 4. قاعدة بيانات الأسلحة والخناجر والقنابل والأزياء (بأسلوب Surviv.io)
+        // ==========================================
+        const GUNS = {
+            m9: { id: 'm9', name: 'M9', fullName: 'مسدس M9', icon: '🔫', ammoColor: '#eab308', damage: 17, fireRate: 0.22, speed: 940, spread: 0.05, pellets: 1, magSize: 15, reloadTime: 1.0, color: '#334155', length: 20 },
+            deagle: { id: 'deagle', name: 'DEagle 50', fullName: 'مسدس DEagle', icon: '🔫', ammoColor: '#a855f7', damage: 36, fireRate: 0.34, speed: 1080, spread: 0.04, pellets: 1, magSize: 7, reloadTime: 1.2, color: '#cbd5e1', length: 23 },
+            ump: { id: 'ump', name: 'UMP9', fullName: 'رشاش UMP9', icon: '🔫', ammoColor: '#eab308', damage: 18, fireRate: 0.11, speed: 990, spread: 0.07, pellets: 1, magSize: 25, reloadTime: 1.3, color: '#1e293b', length: 30 },
+            vector: { id: 'vector', name: 'Vector', fullName: 'رشاش Vector', icon: '⚡', ammoColor: '#eab308', damage: 14, fireRate: 0.065, speed: 1030, spread: 0.08, pellets: 1, magSize: 30, reloadTime: 1.2, color: '#475569', length: 28 },
+            ak47: { id: 'ak47', name: 'AK-47', fullName: 'رشاش AK-47', icon: '🔥', ammoColor: '#3b82f6', damage: 25, fireRate: 0.13, speed: 1140, spread: 0.06, pellets: 1, magSize: 30, reloadTime: 1.5, color: '#78350f', length: 38 },
+            m416: { id: 'm416', name: 'M416', fullName: 'بندقية M416', icon: '🎯', ammoColor: '#22c55e', damage: 23, fireRate: 0.10, speed: 1200, spread: 0.04, pellets: 1, magSize: 30, reloadTime: 1.4, color: '#1e293b', length: 38 },
+            m870: { id: 'm870', name: 'M870', fullName: 'شوزن M870', icon: '💥', ammoColor: '#ef4444', damage: 16, fireRate: 0.72, speed: 860, spread: 0.21, pellets: 6, magSize: 5, reloadTime: 1.6, color: '#78350f', length: 36 },
+            saiga: { id: 'saiga', name: 'Saiga-12', fullName: 'شوزن Saiga-12', icon: '💥', ammoColor: '#ef4444', damage: 15, fireRate: 0.32, speed: 880, spread: 0.23, pellets: 5, magSize: 8, reloadTime: 1.7, color: '#0f172a', length: 36 },
+            m249: { id: 'm249', name: 'M249', fullName: 'مدفع M249', icon: '🛡️', ammoColor: '#22c55e', damage: 22, fireRate: 0.085, speed: 1160, spread: 0.07, pellets: 1, magSize: 75, reloadTime: 2.3, color: '#15803d', length: 42 },
+            mosin: { id: 'mosin', name: 'Mosin-Nagant', fullName: 'قناصة Mosin', icon: '🔭', ammoColor: '#3b82f6', damage: 72, fireRate: 1.0, speed: 1580, spread: 0.01, pellets: 1, magSize: 5, reloadTime: 1.8, color: '#78350f', length: 46 },
+            awm: { id: 'awm', name: 'AWM-S', fullName: 'قناصة AWM-S', icon: '👑', ammoColor: '#16a34a', damage: 98, fireRate: 1.2, speed: 1780, spread: 0.005, pellets: 1, magSize: 5, reloadTime: 2.0, color: '#166534', length: 48 }
+        };
+
+        const MELEE_WEAPONS = {
+            fists: { id: 'fists', name: 'قبضة', fullName: 'قبضة اليد', icon: '👊', damage: 24, range: 48, cooldown: 0.34, color: '#f8c57c' },
+            knife: { id: 'knife', name: 'خنجر', fullName: 'سكين Bowie', icon: '🗡️', damage: 40, range: 58, cooldown: 0.27, color: '#cbd5e1' },
+            katana: { id: 'katana', name: 'كاتانا', fullName: 'سيف كاتانا', icon: '⚔️', damage: 58, range: 78, cooldown: 0.36, color: '#38bdf8' },
+            pan: { id: 'pan', name: 'مقلاة', fullName: 'مقلاة حديدية', icon: '🍳', damage: 50, range: 62, cooldown: 0.40, color: '#1e293b' }
+        };
+
+        const GRENADE_TYPES = {
+            frag: { id: 'frag', name: 'متفجرة', fullName: 'قنبلة Frag', icon: '💣', color: '#3f6212' },
+            smoke: { id: 'smoke', name: 'دخانية', fullName: 'قنبلة Smoke', icon: '🌫️', color: '#94a3b8' }
+        };
+
+        // أزياء Surviv.io الكلاسيكية (لون الجسم، لون اليدين، الخوذة، السترة، وحقيبة الظهر الدائرية)
+        const OUTFITS = [
+            { body: '#f8c57c', hands: '#f8c57c', vest: '#334155', pack: '#475569', helmet: '#1e293b', hasVest: true, hasHelmet: true },
+            { body: '#4d7c0f', hands: '#f8c57c', vest: '#365314', pack: '#3f6212', helmet: '#1a2e05', hasVest: true, hasHelmet: true },
+            { body: '#1d4ed8', hands: '#f8c57c', vest: '#1e3a8a', pack: '#1e40af', helmet: '#172554', hasVest: true, hasHelmet: false },
+            { body: '#b91c1c', hands: '#f8c57c', vest: '#7f1d1d', pack: '#991b1b', helmet: '#450a0a', hasVest: false, hasHelmet: true },
+            { body: '#d97706', hands: '#f8c57c', vest: '#92400e', pack: '#78350f', helmet: '#451a03', hasVest: true, hasHelmet: true },
+            { body: '#475569', hands: '#f8c57c', vest: '#1e293b', pack: '#334155', helmet: '#0f172a', hasVest: true, hasHelmet: false }
+        ];
+
+        // ==========================================
+        // 7. تهيئة العالم العملاق (6400×6400) بـ 30 لاعباً وطابع Surviv.io
+        // ==========================================
+        const BOT_NAMES = [
+            'صقر الصحراء', 'الذئب الأسود', 'قناص الليل', 'عاصفة', 'نمر',
+            'فهد', 'شبح المعركة', 'رعد', 'برق', 'أسد الرافدين',
+            'المدمر', 'كاسر', 'حارس الظل', 'صياد', 'بطل الساحة',
+            'نسر الجنوب', 'بركان', 'سيف الحق', 'شهاب', 'مقاتل النخبة',
+            'فارس الظلام', 'جلاد', 'إعصار', 'قاهر الأعداء', 'طيف',
+            'صخرة', 'سهم الليل', 'وحش الغابة', 'زعيم القناصة', 'أسطورة'
+        ];
+
+        function createFighter(name, x, y, isPlayer = false, outfitIndex = 0) {
+            const gunKeys = Object.keys(GUNS);
+            const randomGunKey = gunKeys[Math.floor(Math.random() * gunKeys.length)];
+
+            // كل مقاتل من الـ 15 يبدأ بسلاح ناري واحد (أنت بمسدس M9، والـ 14 بوتاً بأسلحة متنوعة) = 15 سلاحاً نارياً
+            const primaryGun = isPlayer
+                ? { ...GUNS.m9, ammo: GUNS.m9.magSize }
+                : { ...GUNS[randomGunKey], ammo: GUNS[randomGunKey].magSize };
+
+            // كل مقاتل من الـ 15 يبدأ بسلاح يدوي واحد (أنت بقبضة اليد، وبعض البوتات بخناجر/كاتانا) = 15 سلاحاً يدوياً
+            const botMeleeOptions = ['fists', 'fists', 'knife', 'pan', 'katana'];
+            const chosenMeleeKey = isPlayer ? 'fists' : botMeleeOptions[outfitIndex % botMeleeOptions.length];
+
+            return {
+                id: Math.random().toString(36).substr(2, 9),
+                name,
+                isPlayer,
+                outfit: isPlayer ? OUTFITS[0] : OUTFITS[1 + (outfitIndex % (OUTFITS.length - 1))],
+                x,
+                y,
+                radius: 22,
+                angle: Math.random() * Math.PI * 2,
+                hp: 100,
+                maxHp: 100,
+                speed: isPlayer ? 265 : 215,
+                alive: true,
+                kills: 0,
+                slots: [
+                    primaryGun,
+                    null,
+                    { ...MELEE_WEAPONS[chosenMeleeKey] }
+                ],
+                activeSlot: 0,
+                reserveAmmo: isPlayer ? 30 : 120,
+                grenadeType: 'frag',
+                grenades: { frag: isPlayer ? 1 : 1, smoke: 0 },
+                medkits: 0, // اللاعب يبدأ بدون إسعافات ليبحث عنها
+                fireCooldown: 0,
+                reloading: false,
+                reloadTimer: 0,
+                punchAnim: 0,
+                aiState: 'ROAM',
+                aiTargetPos: { x: Math.random() * MAP_SIZE, y: Math.random() * MAP_SIZE },
+                aiTimer: 0
+            };
+        }
+
+        function getSpreadSpawnPoint(existingEntities) {
+            for (let attempt = 0; attempt < 150; attempt++) {
+                const margin = 280;
+                const candX = margin + Math.random() * (MAP_SIZE - margin * 2);
+                const candY = margin + Math.random() * (MAP_SIZE - margin * 2);
+
+                const insideBuilding = buildings.some(b =>
+                    candX > b.x - 50 && candX < b.x + b.w + 50 &&
+                    candY > b.y - 50 && candY < b.y + b.h + 50
+                );
+                if (insideBuilding) continue;
+
+                let farEnough = true;
+                for (let i = 0; i < existingEntities.length; i++) {
+                    const other = existingEntities[i];
+                    if (Math.hypot(candX - other.x, candY - other.y) < MIN_SPAWN_DISTANCE) {
+                        farEnough = false;
+                        break;
+                    }
+                }
+                if (farEnough) return { x: candX, y: candY };
+            }
+            return {
+                x: 300 + Math.random() * (MAP_SIZE - 600),
+                y: 300 + Math.random() * (MAP_SIZE - 600)
+            };
+        }
+
+        function addWallWithWindow(x, y, w, h, isHorizontal) {
+            const winLen = 74;
+            if (isHorizontal) {
+                const sideW = (w - winLen) / 2;
+                obstacles.push({ type: 'wall', x: x, y: y, w: sideW, h: h });
+                obstacles.push({ type: 'window', x: x + sideW, y: y + 2, w: winLen, h: h - 4, broken: false });
+                obstacles.push({ type: 'wall', x: x + sideW + winLen, y: y, w: sideW, h: h });
+            } else {
+                const sideH = (h - winLen) / 2;
+                obstacles.push({ type: 'wall', x: x, y: y, w: w, h: sideH });
+                obstacles.push({ type: 'window', x: x + 2, y: y + sideH, w: w - 4, h: winLen, broken: false });
+                obstacles.push({ type: 'wall', x: x, y: y + sideH + winLen, w: w, h: sideH });
+            }
+        }
+
+        function initWorld() {
+            entities = [];
+            bullets = [];
+            grenades = [];
+            smokes = [];
+            particles = [];
+            lootItems = [];
+            obstacles = [];
+            buildings = [];
+            dirtPatches = [];
+            redZones = [];
+            redZoneTimer = 20;
+
+            // نسيج عشب Surviv.io الأخضر المميز (#80af49) مع شبكة المربعات التكتيكية الخفيفة
+            const patCanvas = document.createElement('canvas');
+            patCanvas.width = 160;
+            patCanvas.height = 160;
+            const pCtx = patCanvas.getContext('2d');
+            pCtx.fillStyle = '#80af49';
+            pCtx.fillRect(0, 0, 160, 160);
+
+            // خطوط شبكة Surviv.io الخفيفة جداً في الخلفية
+            pCtx.strokeStyle = 'rgba(0, 0, 0, 0.06)';
+            pCtx.lineWidth = 2;
+            pCtx.strokeRect(0, 0, 160, 160);
+
+            // تفاصيل عشبية خفيفة
+            for (let i = 0; i < 35; i++) {
+                const px = (i * 53) % 160;
+                const py = (i * 97) % 160;
+                pCtx.fillStyle = i % 2 === 0 ? 'rgba(104, 148, 54, 0.45)' : 'rgba(146, 194, 88, 0.35)';
+                pCtx.beginPath();
+                pCtx.arc(px, py, (i % 3) + 1.5, 0, Math.PI * 2);
+                pCtx.fill();
+            }
+            groundPattern = ctx.createPattern(patCanvas, 'repeat');
+
+            // بقع رملية/ترابية بأسلوب Surviv.io
+            for (let i = 0; i < 75; i++) {
+                dirtPatches.push({
+                    x: Math.random() * MAP_SIZE,
+                    y: Math.random() * MAP_SIZE,
+                    rx: 110 + Math.random() * 190,
+                    ry: 80 + Math.random() * 140,
+                    rot: Math.random() * Math.PI
+                });
+            }
+
+            zone = {
+                x: MAP_SIZE / 2,
+                y: MAP_SIZE / 2,
+                radius: MAP_SIZE * 0.72,
+                targetRadius: 280,
+                shrinkSpeed: 15
+            };
+
+            // 20 مبنى متنوع (أكواخ خشبية ومستودعات خرسانية) موزعة في الخريطة العملاقة 6400×6400
+            const buildingCoords = [
+                { x: 550, y: 550, w: 340, h: 280, floor: 'wood' },
+                { x: 1850, y: 500, w: 380, h: 280, floor: 'concrete' },
+                { x: 3200, y: 520, w: 340, h: 280, floor: 'wood' },
+                { x: 4550, y: 550, w: 380, h: 280, floor: 'concrete' },
+                { x: 5650, y: 650, w: 340, h: 280, floor: 'wood' },
+
+                { x: 520, y: 1950, w: 360, h: 280, floor: 'concrete' },
+                { x: 1900, y: 1900, w: 340, h: 280, floor: 'wood' },
+                { x: 3150, y: 1850, w: 420, h: 320, floor: 'concrete' },
+                { x: 4500, y: 1950, w: 340, h: 280, floor: 'wood' },
+                { x: 5650, y: 2050, w: 360, h: 280, floor: 'concrete' },
+
+                { x: 600, y: 3350, w: 340, h: 280, floor: 'wood' },
+                { x: 1850, y: 3300, w: 400, h: 300, floor: 'concrete' },
+                { x: 3180, y: 3250, w: 440, h: 340, floor: 'concrete' },
+                { x: 4550, y: 3350, w: 340, h: 280, floor: 'wood' },
+                { x: 5600, y: 3400, w: 360, h: 280, floor: 'concrete' },
+
+                { x: 580, y: 4850, w: 360, h: 280, floor: 'concrete' },
+                { x: 1950, y: 4950, w: 340, h: 280, floor: 'wood' },
+                { x: 3250, y: 5100, w: 400, h: 300, floor: 'concrete' },
+                { x: 4650, y: 4950, w: 340, h: 280, floor: 'wood' },
+                { x: 5600, y: 5250, w: 380, h: 300, floor: 'concrete' }
+            ];
+
+            buildingCoords.forEach((b, idx) => {
+                buildings.push(b);
+                const wallThick = 16;
+                const doorSize = 88;
+
+                addWallWithWindow(b.x, b.y, b.w, wallThick, true);
+                addWallWithWindow(b.x, b.y, wallThick, b.h, false);
+                addWallWithWindow(b.x + b.w - wallThick, b.y, wallThick, b.h, false);
+
+                const halfW = (b.w - doorSize) / 2;
+                obstacles.push({ type: 'wall', x: b.x, y: b.y + b.h - wallThick, w: halfW, h: wallThick });
+                obstacles.push({ type: 'wall', x: b.x + halfW + doorSize, y: b.y + b.h - wallThick, w: halfW, h: wallThick });
+
+                lootItems.push({ kind: 'ammo', amount: 30, x: b.x + 65, y: b.y + 65 });
+                if (idx % 2 === 0) {
+                    lootItems.push({ kind: 'medkit', count: 1, x: b.x + b.w - 65, y: b.y + 65 });
+                }
+            });
+
+            // 1. توزيع الأسلحة النارية في المباني وأنحاء الخريطة العملاقة
+            const gunKeys = Object.keys(GUNS);
+            for (let i = 0; i < 30; i++) {
+                const key = gunKeys[Math.floor(Math.random() * gunKeys.length)];
+                if (i < buildingCoords.length) {
+                    const b = buildingCoords[i];
+                    lootItems.push({ kind: 'gun', gunId: key, x: b.x + b.w / 2, y: b.y + b.h / 2 });
+                } else {
+                    lootItems.push({
+                        kind: 'gun',
+                        gunId: key,
+                        x: 320 + Math.random() * (MAP_SIZE - 640),
+                        y: 320 + Math.random() * (MAP_SIZE - 640)
+                    });
+                }
+            }
+
+            // 2. توزيع أسلحة الاشتباك اليدوي (خناجر، كاتانا، مقالي)
+            const meleePool = ['knife', 'katana', 'pan'];
+            for (let i = 0; i < 24; i++) {
+                const mKey = meleePool[i % meleePool.length];
+                lootItems.push({
+                    kind: 'melee',
+                    meleeId: mKey,
+                    x: 300 + Math.random() * (MAP_SIZE - 600),
+                    y: 300 + Math.random() * (MAP_SIZE - 600)
+                });
+            }
+
+            // 3. توزيع الذخيرة والقنابل والإسعافات في الخريطة العملاقة
+            for (let i = 0; i < 65; i++) {
+                const rx = 250 + Math.random() * (MAP_SIZE - 500);
+                const ry = 250 + Math.random() * (MAP_SIZE - 500);
+                const r = Math.random();
+                if (r < 0.35) {
+                    const gType = Math.random() > 0.4 ? 'frag' : 'smoke';
+                    lootItems.push({ kind: 'grenade', grenadeType: gType, count: 2, x: rx, y: ry });
+                } else if (r < 0.84) {
+                    lootItems.push({ kind: 'ammo', amount: 30, x: rx, y: ry });
+                } else {
+                    lootItems.push({ kind: 'medkit', count: 1, x: rx, y: ry });
+                }
+            }
+
+            // إنشاء الأشجار والصخور والصناديق الخشبية بأسلوب Surviv.io في كافة أنحاء الخريطة العملاقة
+            for (let i = 0; i < 220; i++) {
+                const rx = 200 + Math.random() * (MAP_SIZE - 400);
+                const ry = 200 + Math.random() * (MAP_SIZE - 400);
+                if (buildings.some(b => rx > b.x - 80 && rx < b.x + b.w + 80 && ry > b.y - 80 && ry < b.y + b.h + 80)) continue;
+
+                const roll = Math.random();
+                if (roll < 0.45) {
+                    obstacles.push({ type: 'tree', x: rx, y: ry, radius: 52, trunkRadius: 17 });
+                } else if (roll < 0.76) {
+                    obstacles.push({ type: 'rock', x: rx, y: ry, radius: 36, hp: 9999 });
+                } else {
+                    obstacles.push({ type: 'crate', x: rx - 25, y: ry - 25, w: 50, h: 50, hp: 50 });
+                }
+            }
+
+            // إنشاء اللاعب في نقطة آمنة متباعدة
+            const playerPos = getSpreadSpawnPoint(entities);
+            player = createFighter('أنت (البطل)', playerPos.x, playerPos.y, true, 0);
+            entities.push(player);
+
+            // إنشاء 29 بوت متباعدين عن بعضهم وعنك (المجموع 30 لاعباً)
+            for (let i = 0; i < BOT_COUNT; i++) {
+                const botPos = getSpreadSpawnPoint(entities);
+                const botName = BOT_NAMES[i % BOT_NAMES.length];
+                entities.push(createFighter(botName, botPos.x, botPos.y, false, i));
+            }
+
+            updateHUD();
+        }
+
+        function spawnCrateLoot(x, y) {
+            // الصناديق تعطي ذخيرة أو قنابل ونادراً جداً إسعافات
+            const r = Math.random();
+            if (r < 0.62) {
+                lootItems.push({ kind: 'ammo', amount: 30, x, y });
+            } else if (r < 0.88) {
+                const gType = Math.random() > 0.4 ? 'frag' : 'smoke';
+                lootItems.push({ kind: 'grenade', grenadeType: gType, count: 2, x, y });
+            } else {
+                lootItems.push({ kind: 'medkit', count: 1, x, y });
+            }
+        }
+
+        // ==========================================
+        // 8. إدارة الأسلحة، التبديل، الإطلاق، القنابل، والتصادمات
+        // ==========================================
+        function selectSlot(slotIndex) {
+            if (!player || !player.alive) return;
+            if (slotIndex === 1 && !player.slots[1]) return;
+            player.activeSlot = slotIndex;
+            player.reloading = false;
+            updateHUD();
+        }
+
+        function handleGrenadeSlotClick() {
+            if (!player || !player.alive) return;
+            const now = Date.now();
+            // الضغط مرتين على خانة القنابل يبدل بين المتفجرة والدخانية
+            if (player.activeSlot === 3 || (now - lastGrenadeClickTime < 450)) {
+                player.grenadeType = player.grenadeType === 'frag' ? 'smoke' : 'frag';
+            }
+            player.activeSlot = 3;
+            player.reloading = false;
+            lastGrenadeClickTime = now;
+            updateHUD();
+        }
+
+        function useMedkit() {
+            if (!player || !player.alive) return;
+            if (player.medkits > 0 && player.hp < player.maxHp) {
+                player.medkits--;
+                player.hp = Math.min(player.maxHp, player.hp + 45);
+                playSound('loot');
+                spawnParticles(player.x, player.y, '#4ade80', 10);
+                updateHUD();
+            }
+        }
+
+        function startReload(ent) {
+            if (ent.reloading || ent.activeSlot > 1) return;
+            const gun = ent.slots[ent.activeSlot];
+            if (!gun || gun.ammo >= gun.magSize || ent.reserveAmmo <= 0) return;
+            ent.reloading = true;
+            ent.reloadTimer = gun.reloadTime;
+        }
+
+        function pickupNearestLoot(ent) {
+            let closestIdx = -1;
+            let closestDist = 62;
+            for (let i = 0; i < lootItems.length; i++) {
+                const d = Math.hypot(ent.x - lootItems[i].x, ent.y - lootItems[i].y);
+                if (d < closestDist) {
+                    closestDist = d;
+                    closestIdx = i;
+                }
+            }
+            if (closestIdx === -1) return;
+
+            const item = lootItems[closestIdx];
+            if (item.kind === 'gun') {
+                const newGun = { ...GUNS[item.gunId], ammo: GUNS[item.gunId].magSize };
+                if (!ent.slots[0]) {
+                    ent.slots[0] = newGun;
+                    ent.activeSlot = 0;
+                } else if (!ent.slots[1]) {
+                    ent.slots[1] = newGun;
+                    ent.activeSlot = 1;
+                } else {
+                    const targetSlot = ent.activeSlot <= 1 ? ent.activeSlot : 0;
+                    const oldGun = ent.slots[targetSlot];
+                    lootItems.push({ kind: 'gun', gunId: oldGun.id, x: ent.x, y: ent.y });
+                    ent.slots[targetSlot] = newGun;
+                    ent.activeSlot = targetSlot;
+                }
+                ent.reloading = false;
+            } else if (item.kind === 'melee') {
+                const oldMelee = ent.slots[2];
+                if (oldMelee && oldMelee.id !== 'fists') {
+                    lootItems.push({ kind: 'melee', meleeId: oldMelee.id, x: ent.x, y: ent.y });
+                }
+                ent.slots[2] = { ...MELEE_WEAPONS[item.meleeId] };
+                ent.activeSlot = 2;
+            } else if (item.kind === 'ammo') {
+                ent.reserveAmmo += item.amount;
+            } else if (item.kind === 'medkit') {
+                ent.medkits += item.count;
+            } else if (item.kind === 'grenade') {
+                ent.grenades[item.grenadeType] = (ent.grenades[item.grenadeType] || 0) + item.count;
+            }
+
+            lootItems.splice(closestIdx, 1);
+            if (ent.isPlayer) {
+                playSound('loot');
+                updateHUD();
+            }
+        }
+
+        function triggerAttack(ent) {
+            if (!ent.alive || ent.fireCooldown > 0 || ent.reloading) return;
+
+            // 1. الأسلحة النارية
+            if (ent.activeSlot <= 1) {
+                const gun = ent.slots[ent.activeSlot];
+                if (!gun) return;
+                if (gun.ammo <= 0) {
+                    startReload(ent);
+                    return;
+                }
+                gun.ammo--;
+                ent.fireCooldown = gun.fireRate;
+
+                if (ent.isPlayer || Math.hypot(ent.x - player.x, ent.y - player.y) < 900) {
+                    playSound(gun.id === 'awm' || gun.id === 'mosin' ? 'sniper' : 'shoot');
+                }
+
+                const muzzleX = ent.x + Math.cos(ent.angle) * (ent.radius + gun.length);
+                const muzzleY = ent.y + Math.sin(ent.angle) * (ent.radius + gun.length);
+
+                for (let p = 0; p < gun.pellets; p++) {
+                    const spreadAngle = ent.angle + (Math.random() - 0.5) * gun.spread;
+                    bullets.push({
+                        x: muzzleX,
+                        y: muzzleY,
+                        vx: Math.cos(spreadAngle) * gun.speed,
+                        vy: Math.sin(spreadAngle) * gun.speed,
+                        damage: gun.damage,
+                        owner: ent,
+                        life: 1.4
+                    });
+                }
+
+                if (gun.ammo === 0 && ent.reserveAmmo > 0) {
+                    startReload(ent);
+                }
+                if (ent.isPlayer) updateHUD();
+            }
+            // 2. الاشتباك اليدوي (قبضة، خنجر، كاتانا، مقلاة)
+            else if (ent.activeSlot === 2) {
+                const melee = ent.slots[2];
+                ent.fireCooldown = melee.cooldown;
+                ent.punchAnim = 1.0;
+
+                if (ent.isPlayer || Math.hypot(ent.x - player.x, ent.y - player.y) < 600) {
+                    playSound('melee');
+                }
+
+                const hitX = ent.x + Math.cos(ent.angle) * (ent.radius + melee.range * 0.65);
+                const hitY = ent.y + Math.sin(ent.angle) * (ent.radius + melee.range * 0.65);
+
+                // ضرب المقاتلين القريبين
+                entities.forEach(target => {
+                    if (target !== ent && target.alive) {
+                        if (Math.hypot(target.x - hitX, target.y - hitY) < target.radius + 26) {
+                            applyDamage(target, melee.damage, ent);
+                            spawnParticles(target.x, target.y, '#ef4444', 6);
+                        }
+                    }
+                });
+
+                // تكسير الصناديق الخشبية باليد
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obs = obstacles[i];
+                    if (obs.type === 'crate') {
+                        const cx = obs.x + obs.w / 2;
+                        const cy = obs.y + obs.h / 2;
+                        if (Math.hypot(cx - hitX, cy - hitY) < 48) {
+                            obs.hp -= melee.damage;
+                            spawnParticles(cx, cy, '#9a6332', 5);
+                            if (obs.hp <= 0) {
+                                spawnCrateLoot(cx, cy);
+                                obstacles.splice(i, 1);
+                            }
+                        }
+                    }
+                }
+            }
+            // 3. رمي القنابل (متفجرة أو دخانية)
+            else if (ent.activeSlot === 3) {
+                const gType = ent.grenadeType;
+                if ((ent.grenades[gType] || 0) <= 0) return;
+                ent.grenades[gType]--;
+                ent.fireCooldown = 0.65;
+
+                grenades.push({
+                    type: gType,
+                    x: ent.x + Math.cos(ent.angle) * 28,
+                    y: ent.y + Math.sin(ent.angle) * 28,
+                    vx: Math.cos(ent.angle) * 520,
+                    vy: Math.sin(ent.angle) * 520,
+                    timer: 2.1,
+                    owner: ent
+                });
+
+                if (ent.isPlayer) updateHUD();
+            }
+        }
+
+        function applyDamage(target, amount, attacker) {
+            if (!target.alive) return;
+            const finalDamage = (target.isPlayer && attacker && !attacker.isPlayer)
+                ? amount * BOT_DAMAGE_MULTIPLIER
+                : amount;
+
+            target.hp -= finalDamage;
+            if (target.hp <= 0) {
+                target.hp = 0;
+                target.alive = false;
+                spawnParticles(target.x, target.y, '#dc2626', 18);
+
+                // إسقاط أسلحة وعناصر المقتول على الأرض
+                if (target.slots[0]) lootItems.push({ kind: 'gun', gunId: target.slots[0].id, x: target.x - 16, y: target.y });
+                if (target.slots[1]) lootItems.push({ kind: 'gun', gunId: target.slots[1].id, x: target.x + 16, y: target.y });
+                if (target.slots[2] && target.slots[2].id !== 'fists') {
+                    lootItems.push({ kind: 'melee', meleeId: target.slots[2].id, x: target.x, y: target.y - 16 });
+                }
+                if (target.reserveAmmo > 0) {
+                    lootItems.push({ kind: 'ammo', amount: Math.min(60, target.reserveAmmo), x: target.x, y: target.y + 16 });
+                }
+                if (target.medkits > 0) {
+                    lootItems.push({ kind: 'medkit', count: target.medkits, x: target.x + 12, y: target.y + 12 });
+                }
+
+                if (attacker && attacker.alive) {
+                    attacker.kills++;
+                    addKillFeed(`${attacker.name} قضى على ${target.name}`);
+                } else {
+                    addKillFeed(`${target.name} خرج من المنطقة الآمنة`);
+                }
+
+                checkMatchEnd();
+            }
+            if (target.isPlayer) updateHUD();
+        }
+
+        function addKillFeed(text) {
+            const feed = document.getElementById('killFeed');
+            const div = document.createElement('div');
+            div.className = 'kill-msg';
+            div.textContent = text;
+            feed.prepend(div);
+            if (feed.children.length > 5) feed.removeChild(feed.lastChild);
+            setTimeout(() => { if (div.parentNode) div.remove(); }, 4500);
+        }
+
+        function spawnParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const sp = 60 + Math.random() * 190;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(a) * sp,
+                    vy: Math.sin(a) * sp,
+                    size: 2.5 + Math.random() * 3.5,
+                    color,
+                    life: 0.35 + Math.random() * 0.25
+                });
+            }
+        }
+
+        function circleRectCollide(cx, cy, cr, rx, ry, rw, rh) {
+            const closestX = Math.max(rx, Math.min(cx, rx + rw));
+            const closestY = Math.max(ry, Math.min(cy, ry + rh));
+            const dx = cx - closestX;
+            const dy = cy - closestY;
+            return (dx * dx + dy * dy) < (cr * cr);
+        }
+
+        function resolveObstacleCollisions(ent) {
+            ent.x = Math.max(ent.radius, Math.min(MAP_SIZE - ent.radius, ent.x));
+            ent.y = Math.max(ent.radius, Math.min(MAP_SIZE - ent.radius, ent.y));
+
+            for (let i = 0; i < obstacles.length; i++) {
+                const obs = obstacles[i];
+                if (obs.type === 'tree') {
+                    const dx = ent.x - obs.x;
+                    const dy = ent.y - obs.y;
+                    const dist = Math.hypot(dx, dy);
+                    const minDist = ent.radius + obs.trunkRadius;
+                    if (dist < minDist && dist > 0.001) {
+                        ent.x += (dx / dist) * (minDist - dist);
+                        ent.y += (dy / dist) * (minDist - dist);
+                    }
+                } else if (obs.type === 'rock') {
+                    const dx = ent.x - obs.x;
+                    const dy = ent.y - obs.y;
+                    const dist = Math.hypot(dx, dy);
+                    const minDist = ent.radius + obs.radius;
+                    if (dist < minDist && dist > 0.001) {
+                        ent.x += (dx / dist) * (minDist - dist);
+                        ent.y += (dy / dist) * (minDist - dist);
+                    }
+                } else if (obs.type === 'wall' || obs.type === 'window' || obs.type === 'crate') {
+                    const closestX = Math.max(obs.x, Math.min(ent.x, obs.x + obs.w));
+                    const closestY = Math.max(obs.y, Math.min(ent.y, obs.y + obs.h));
+                    const dx = ent.x - closestX;
+                    const dy = ent.y - closestY;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < ent.radius) {
+                        if (dist > 0.001) {
+                            ent.x += (dx / dist) * (ent.radius - dist);
+                            ent.y += (dy / dist) * (ent.radius - dist);
+                        } else {
+                            ent.y += ent.radius;
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 9. التحديث الفيزيائي والذكاء الاصطناعي للبوتات
+        // ==========================================
+        function update(dt) {
+            if (gameState !== 'PLAYING' || !player) return;
+
+            // تقليص المنطقة الآمنة
+            if (zone.radius > zone.targetRadius) {
+                zone.radius = Math.max(zone.targetRadius, zone.radius - zone.shrinkSpeed * dt);
+            }
+
+            // إدارة القصف الجوي (Red Zone)
+            redZoneTimer -= dt;
+            if (redZoneTimer <= 0) {
+                redZoneTimer = 28;
+                const rzX = Math.max(400, Math.min(MAP_SIZE - 400, player.x + (Math.random() - 0.5) * 1400));
+                const rzY = Math.max(400, Math.min(MAP_SIZE - 400, player.y + (Math.random() - 0.5) * 1400));
+                redZones.push({ x: rzX, y: rzY, radius: 340, timer: 9.0, bombTick: 0.55 });
+                const alertEl = document.getElementById('centerAlert');
+                alertEl.style.opacity = '1';
+                setTimeout(() => { alertEl.style.opacity = '0'; }, 3500);
+            }
+
+            for (let i = redZones.length - 1; i >= 0; i--) {
+                const rz = redZones[i];
+                rz.timer -= dt;
+                rz.bombTick -= dt;
+                if (rz.bombTick <= 0) {
+                    rz.bombTick = 0.45;
+                    const a = Math.random() * Math.PI * 2;
+                    const r = Math.random() * rz.radius;
+                    const bx = rz.x + Math.cos(a) * r;
+                    const by = rz.y + Math.sin(a) * r;
+                    spawnParticles(bx, by, '#f97316', 14);
+                    if (Math.hypot(bx - player.x, by - player.y) < 950) playSound('explosion');
+                    entities.forEach(ent => {
+                        if (ent.alive && Math.hypot(ent.x - bx, ent.y - by) < 95) {
+                            applyDamage(ent, 42, null);
+                        }
+                    });
+                }
+                if (rz.timer <= 0) redZones.splice(i, 1);
+            }
+
+            // تحديث جميع المقاتلين (اللاعب + البوتات)
+            entities.forEach(ent => {
+                if (!ent.alive) return;
+
+                if (ent.fireCooldown > 0) ent.fireCooldown -= dt;
+                if (ent.punchAnim > 0) ent.punchAnim = Math.max(0, ent.punchAnim - dt * 4.5);
+
+                if (ent.reloading) {
+                    ent.reloadTimer -= dt;
+                    if (ent.reloadTimer <= 0) {
+                        ent.reloading = false;
+                        const gun = ent.slots[ent.activeSlot];
+                        if (gun) {
+                            const needed = gun.magSize - gun.ammo;
+                            const transfer = Math.min(needed, ent.reserveAmmo);
+                            gun.ammo += transfer;
+                            ent.reserveAmmo -= transfer;
+                        }
+                        if (ent.isPlayer) updateHUD();
+                    }
+                }
+
+                // ضرر الخروج عن المنطقة الآمنة
+                if (Math.hypot(ent.x - zone.x, ent.y - zone.y) > zone.radius) {
+                    applyDamage(ent, 6 * dt, null);
+                }
+
+                if (ent.isPlayer) {
+                    let moveX = 0;
+                    let moveY = 0;
+                    if (isMobileMode && leftStick.active) {
+                        moveX = leftStick.dx;
+                        moveY = leftStick.dy;
+                    } else {
+                        if (keys['KeyW'] || keys['ArrowUp']) moveY -= 1;
+                        if (keys['KeyS'] || keys['ArrowDown']) moveY += 1;
+                        if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 1;
+                        if (keys['KeyD'] || keys['ArrowRight']) moveX += 1;
+                    }
+
+                    const mag = Math.hypot(moveX, moveY);
+                    if (mag > 0.05) {
+                        const norm = mag > 1 ? 1 / mag : 1;
+                        ent.x += moveX * norm * ent.speed * dt;
+                        ent.y += moveY * norm * ent.speed * dt;
+                    }
+
+                    if (isMobileMode) {
+                        if (rightStick.active && (Math.abs(rightStick.dx) > 0.1 || Math.abs(rightStick.dy) > 0.1)) {
+                            ent.angle = Math.atan2(rightStick.dy, rightStick.dx);
+                            if (rightStick.firing) triggerAttack(ent);
+                        } else if (mag > 0.15) {
+                            ent.angle = Math.atan2(moveY, moveX);
+                        }
+                    } else {
+                        const worldMouseX = mouse.x + camera.x;
+                        const worldMouseY = mouse.y + camera.y;
+                        ent.angle = Math.atan2(worldMouseY - ent.y, worldMouseX - ent.x);
+                        if (mouse.down) triggerAttack(ent);
+                    }
+                } else {
+                    // ذكاء اصطناعي للبوتات
+                    let nearestEnemy = null;
+                    let nearestDist = 540;
+                    for (let j = 0; j < entities.length; j++) {
+                        const other = entities[j];
+                        if (other !== ent && other.alive) {
+                            const d = Math.hypot(other.x - ent.x, other.y - ent.y);
+                            if (d < nearestDist) {
+                                nearestDist = d;
+                                nearestEnemy = other;
+                            }
+                        }
+                    }
+
+                    if (nearestEnemy) {
+                        ent.angle = Math.atan2(nearestEnemy.y - ent.y, nearestEnemy.x - ent.x);
+                        if (nearestDist > 210) {
+                            ent.x += Math.cos(ent.angle) * ent.speed * 0.85 * dt;
+                            ent.y += Math.sin(ent.angle) * ent.speed * 0.85 * dt;
+                        }
+                        triggerAttack(ent);
+                    } else {
+                        ent.aiTimer -= dt;
+                        if (ent.aiTimer <= 0 || Math.hypot(ent.aiTargetPos.x - ent.x, ent.aiTargetPos.y - ent.y) < 80) {
+                            ent.aiTimer = 2.5 + Math.random() * 2.5;
+                            const toZoneAngle = Math.atan2(zone.y - ent.y, zone.x - ent.x) + (Math.random() - 0.5) * 1.4;
+                            ent.aiTargetPos = {
+                                x: Math.max(200, Math.min(MAP_SIZE - 200, ent.x + Math.cos(toZoneAngle) * 450)),
+                                y: Math.max(200, Math.min(MAP_SIZE - 200, ent.y + Math.sin(toZoneAngle) * 450))
+                            };
+                        }
+                        const moveAngle = Math.atan2(ent.aiTargetPos.y - ent.y, ent.aiTargetPos.x - ent.x);
+                        ent.angle = moveAngle;
+                        ent.x += Math.cos(moveAngle) * ent.speed * 0.72 * dt;
+                        ent.y += Math.sin(moveAngle) * ent.speed * 0.72 * dt;
+                    }
+                }
+
+                resolveObstacleCollisions(ent);
+            });
+
+            // تحديث الرصاص مع التتبع المتدرج (Sub-stepping) لمنع اختراق الجدران وتحطيم النوافذ
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.life -= dt;
+                if (b.life <= 0) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                const steps = 4;
+                const stepDt = dt / steps;
+                let hitSomething = false;
+
+                for (let s = 0; s < steps; s++) {
+                    b.x += b.vx * stepDt;
+                    b.y += b.vy * stepDt;
+
+                    // تصادم مع العوائق
+                    for (let j = obstacles.length - 1; j >= 0; j--) {
+                        const obs = obstacles[j];
+                        if (obs.type === 'wall') {
+                            if (circleRectCollide(b.x, b.y, 3, obs.x, obs.y, obs.w, obs.h)) {
+                                spawnParticles(b.x, b.y, '#94a3b8', 4);
+                                hitSomething = true;
+                                break;
+                            }
+                        } else if (obs.type === 'window') {
+                            if (!obs.broken && circleRectCollide(b.x, b.y, 3, obs.x, obs.y, obs.w, obs.h)) {
+                                obs.broken = true;
+                                spawnParticles(b.x, b.y, '#bae6fd', 9);
+                                if (Math.hypot(b.x - player.x, b.y - player.y) < 800) playSound('glass');
+                            }
+                        } else if (obs.type === 'rock') {
+                            if (Math.hypot(b.x - obs.x, b.y - obs.y) < obs.radius) {
+                                spawnParticles(b.x, b.y, '#cbd5e1', 4);
+                                hitSomething = true;
+                                break;
+                            }
+                        } else if (obs.type === 'crate') {
+                            if (circleRectCollide(b.x, b.y, 3, obs.x, obs.y, obs.w, obs.h)) {
+                                obs.hp -= b.damage;
+                                spawnParticles(b.x, b.y, '#9a6332', 5);
+                                if (obs.hp <= 0) {
+                                    spawnCrateLoot(obs.x + obs.w / 2, obs.y + obs.h / 2);
+                                    obstacles.splice(j, 1);
+                                }
+                                hitSomething = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hitSomething) break;
+
+                    // تصادم مع اللاعبين
+                    for (let j = 0; j < entities.length; j++) {
+                        const target = entities[j];
+                        if (target !== b.owner && target.alive) {
+                            if (Math.hypot(b.x - target.x, b.y - target.y) < target.radius) {
+                                applyDamage(target, b.damage, b.owner);
+                                spawnParticles(b.x, b.y, '#ef4444', 6);
+                                hitSomething = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hitSomething) break;
+                }
+
+                if (hitSomething) {
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // تحديث القنابل
+            for (let i = grenades.length - 1; i >= 0; i--) {
+                const g = grenades[i];
+                g.x += g.vx * dt;
+                g.y += g.vy * dt;
+                g.vx *= 0.93;
+                g.vy *= 0.93;
+                g.timer -= dt;
+
+                if (g.timer <= 0) {
+                    if (g.type === 'frag') {
+                        playSound('explosion');
+                        spawnParticles(g.x, g.y, '#f97316', 24);
+                        entities.forEach(ent => {
+                            if (ent.alive) {
+                                const d = Math.hypot(ent.x - g.x, ent.y - g.y);
+                                if (d < 175) {
+                                    applyDamage(ent, 95 * (1 - d / 175), g.owner);
+                                }
+                            }
+                        });
+                    } else {
+                        smokes.push({ x: g.x, y: g.y, radius: 135, timer: 11.0 });
+                    }
+                    grenades.splice(i, 1);
+                }
+            }
+
+            // تحديث الدخان
+            for (let i = smokes.length - 1; i >= 0; i--) {
+                smokes[i].timer -= dt;
+                if (smokes[i].timer <= 0) smokes.splice(i, 1);
+            }
+
+            // تحديث الجزيئات
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            // تحديث الكاميرا وإشعار التقاط اللوت
+            camera.x = Math.max(0, Math.min(MAP_SIZE - canvas.width, player.x - canvas.width / 2));
+            camera.y = Math.max(0, Math.min(MAP_SIZE - canvas.height, player.y - canvas.height / 2));
+
+            const nearLoot = lootItems.find(item => Math.hypot(player.x - item.x, player.y - item.y) < 62);
+            const promptEl = document.getElementById('lootPrompt');
+            if (nearLoot && player.alive) {
+                let itemName = 'عنصر';
+                if (nearLoot.kind === 'gun') itemName = GUNS[nearLoot.gunId].fullName;
+                else if (nearLoot.kind === 'melee') itemName = MELEE_WEAPONS[nearLoot.meleeId].fullName;
+                else if (nearLoot.kind === 'ammo') itemName = `ذخيرة (+${nearLoot.amount})`;
+                else if (nearLoot.kind === 'medkit') itemName = 'حقيبة إسعافات';
+                else if (nearLoot.kind === 'grenade') itemName = GRENADE_TYPES[nearLoot.grenadeType].fullName;
+
+                promptEl.style.display = 'block';
+                promptEl.textContent = isMobileMode ? `اضغط [أخذ] لالتقاط: ${itemName}` : `اضغط [F] لالتقاط: ${itemName}`;
+            } else {
+                promptEl.style.display = 'none';
+            }
+
+            updateHUD();
+        }
+
+        function updateHUD() {
+            if (!player) return;
+            const aliveCount = entities.filter(e => e.alive).length;
+            document.getElementById('aliveCount').textContent = aliveCount;
+            document.getElementById('killsCount').textContent = player.kills;
+
+            const hpPct = Math.max(0, (player.hp / player.maxHp) * 100);
+            const fillEl = document.getElementById('healthFill');
+            fillEl.style.width = hpPct + '%';
+            fillEl.style.background = hpPct > 50
+                ? 'linear-gradient(90deg, #16a34a, #4ade80)'
+                : hpPct > 25
+                    ? 'linear-gradient(90deg, #ca8a04, #facc15)'
+                    : 'linear-gradient(90deg, #b91c1c, #ef4444)';
+            document.getElementById('healthText').textContent = `${Math.ceil(player.hp)} / ${player.maxHp} HP`;
+
+            // تحديث خانات الأسلحة
+            for (let i = 0; i < 2; i++) {
+                const gun = player.slots[i];
+                document.getElementById(`slot${i}Icon`).textContent = gun ? gun.icon : '➖';
+                document.getElementById(`slot${i}Name`).textContent = gun ? gun.name : 'فارغ';
+                document.getElementById(`slot${i}Ammo`).textContent = gun
+                    ? (player.reloading && player.activeSlot === i ? 'تعبئة...' : `${gun.ammo}/${player.reserveAmmo}`)
+                    : '--';
+            }
+
+            const melee = player.slots[2];
+            document.getElementById('slot2Icon').textContent = melee.icon;
+            document.getElementById('slot2Name').textContent = melee.name;
+
+            const gInfo = GRENADE_TYPES[player.grenadeType];
+            document.getElementById('slot3Icon').textContent = gInfo.icon;
+            document.getElementById('slot3Name').textContent = gInfo.name;
+            document.getElementById('slot3Ammo').textContent = player.grenades[player.grenadeType] || 0;
+
+            document.getElementById('medkitCount').textContent = player.medkits;
+
+            for (let i = 0; i < 5; i++) {
+                document.getElementById(`slot${i}`).classList.toggle('active', player.activeSlot === i);
+            }
+        }
+
+        function checkMatchEnd() {
+            const aliveEntities = entities.filter(e => e.alive);
+            if (!player.alive) {
+                gameState = 'ENDED';
+                document.getElementById('endTitle').textContent = 'تم القضاء عليك! 💀';
+                document.getElementById('endSubtitle').textContent = `المركز: #${aliveEntities.length + 1} • القتلى: ${player.kills}`;
+                document.getElementById('endScreen').style.display = 'flex';
+            } else if (aliveEntities.length === 1 && aliveEntities[0] === player) {
+                gameState = 'ENDED';
+                document.getElementById('endTitle').textContent = 'نصر ساحق! المركز #1 🏆';
+                document.getElementById('endSubtitle').textContent = `عدد القتلى: ${player.kills} مقاتلاً`;
+                document.getElementById('endScreen').style.display = 'flex';
+            }
+        }
+
+        // ==========================================
+        // 10. الرسم التفصيلي الكلاسيكي لـ Surviv.io (اللوت الدائري، اللاعبين، الصناديق، الأشجار)
+        // ==========================================
+        function drawLootItem(ctx, item) {
+            ctx.save();
+
+            // حلقة اللوت الدائرية الشهيرة في Surviv.io
+            let ringColor = '#94a3b8';
+            if (item.kind === 'gun') ringColor = GUNS[item.gunId].ammoColor || '#facc15';
+            else if (item.kind === 'melee') ringColor = '#38bdf8';
+            else if (item.kind === 'ammo') ringColor = '#eab308';
+            else if (item.kind === 'medkit') ringColor = '#ef4444';
+            else if (item.kind === 'grenade') ringColor = '#22c55e';
+
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.42)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 26, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = ringColor;
+            ctx.stroke();
+
+            ctx.save();
+            ctx.rotate(-0.42);
+
+            if (item.kind === 'gun') {
+                const id = item.gunId;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
+                ctx.fillRect(-19, 4, 40, 6);
+
+                if (id === 'm9' || id === 'deagle') {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(-10, 0, 7, 10);
+                    ctx.fillStyle = id === 'deagle' ? '#e2e8f0' : '#64748b';
+                    ctx.fillRect(-11, -6, 22, 7);
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.fillRect(-9, -5, 18, 2);
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(11, -5, 3, 4);
+                } else if (id === 'mosin' || id === 'awm') {
+                    ctx.fillStyle = id === 'awm' ? '#15803d' : '#78350f';
+                    ctx.beginPath();
+                    ctx.moveTo(-24, -2); ctx.lineTo(-12, -4); ctx.lineTo(10, -4);
+                    ctx.lineTo(10, 2); ctx.lineTo(-14, 3); ctx.lineTo(-24, 5);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(10, -3, 18, 3);
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(26, -4, 4, 5);
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(-7, -10, 16, 4);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(8, -10, 2, 4);
+                } else if (id === 'm870' || id === 'saiga') {
+                    ctx.fillStyle = id === 'm870' ? '#92400e' : '#1e293b';
+                    ctx.fillRect(-21, -3, 12, 7);
+                    ctx.fillStyle = '#334155';
+                    ctx.fillRect(-9, -4, 28, 5);
+                    ctx.fillStyle = id === 'm870' ? '#b45309' : '#475569';
+                    ctx.fillRect(3, 0, 12, 4);
+                    if (id === 'saiga') {
+                        ctx.fillStyle = '#0f172a';
+                        ctx.fillRect(-4, 1, 7, 10);
+                    }
+                } else if (id === 'm249') {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(-22, -4, 11, 8);
+                    ctx.fillStyle = '#166534';
+                    ctx.fillRect(-11, -5, 28, 8);
+                    ctx.fillStyle = '#475569';
+                    ctx.fillRect(17, -4, 10, 4);
+                    ctx.fillStyle = '#eab308';
+                    ctx.fillRect(-5, 3, 11, 9);
+                } else {
+                    ctx.fillStyle = id === 'ak47' ? '#92400e' : '#1e293b';
+                    ctx.fillRect(-21, -3, 10, 7);
+                    ctx.fillStyle = id === 'vector' ? '#ca8a04' : '#334155';
+                    ctx.fillRect(-11, -4, 24, 6);
+                    ctx.fillStyle = id === 'ak47' ? '#b45309' : '#475569';
+                    ctx.fillRect(3, -3, 10, 5);
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(13, -3, 11, 3);
+                    ctx.fillStyle = id === 'ak47' ? '#78350f' : '#0f172a';
+                    ctx.fillRect(-2, 2, 6, 10);
+                }
+            } else if (item.kind === 'melee') {
+                if (item.meleeId === 'katana') {
+                    ctx.fillStyle = '#dc2626';
+                    ctx.fillRect(-20, -3, 9, 5);
+                    ctx.fillStyle = '#facc15';
+                    ctx.fillRect(-11, -5, 2, 9);
+                    ctx.fillStyle = '#f8fafc';
+                    ctx.fillRect(-9, -2, 30, 3);
+                } else if (item.meleeId === 'knife') {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillRect(-14, -3, 9, 6);
+                    ctx.fillStyle = '#cbd5e1';
+                    ctx.beginPath();
+                    ctx.moveTo(-5, -3); ctx.lineTo(16, 0); ctx.lineTo(-5, 3);
+                    ctx.fill();
+                } else if (item.meleeId === 'pan') {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(-16, -2, 13, 4);
+                    ctx.beginPath();
+                    ctx.arc(5, 0, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#475569';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            } else if (item.kind === 'grenade') {
+                ctx.rotate(0.42);
+                ctx.fillStyle = item.grenadeType === 'frag' ? '#15803d' : '#cbd5e1';
+                ctx.beginPath(); ctx.arc(0, 2, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#eab308';
+                ctx.fillRect(-3, -9, 6, 4);
+            } else if (item.kind === 'ammo') {
+                ctx.rotate(0.42);
+                ctx.fillStyle = '#b45309';
+                ctx.fillRect(-9, -7, 18, 14);
+                ctx.fillStyle = '#facc15';
+                ctx.fillRect(-6, -4, 4, 8);
+                ctx.fillRect(2, -4, 4, 8);
+            } else if (item.kind === 'medkit') {
+                ctx.rotate(0.42);
+                ctx.fillStyle = '#f8fafc';
+                ctx.fillRect(-10, -8, 20, 16);
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(-2, -6, 4, 12);
+                ctx.fillRect(-6, -2, 12, 4);
+            }
+
+            ctx.restore();
+
+            if (item.kind === 'gun' || item.kind === 'melee') {
+                const label = item.kind === 'gun' ? GUNS[item.gunId].name : MELEE_WEAPONS[item.meleeId].name;
+                ctx.font = 'bold 10px Cairo';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                ctx.fillRect(-24, 18, 48, 13);
+                ctx.fillStyle = item.kind === 'gun' ? '#fef08a' : '#bae6fd';
+                ctx.fillText(label, 0, 28);
+            }
+
+            ctx.restore();
+        }
+
+        // رسم المقاتل بأسلوب Surviv.io الكلاسيكي الأصلي تماماً
+        function drawFighter(ctx, ent) {
+            const outfit = ent.outfit || OUTFITS[0];
+            ctx.save();
+            ctx.translate(ent.x, ent.y);
+
+            if (!ent.isPlayer) {
+                ctx.fillStyle = 'rgba(0,0,0,0.65)';
+                ctx.fillRect(-22, -40, 44, 6);
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(-22, -40, 44 * (ent.hp / ent.maxHp), 6);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px Cairo';
+                ctx.textAlign = 'center';
+                ctx.fillText(ent.name, 0, -46);
+            }
+
+            ctx.rotate(ent.angle);
+
+            // 1. حقيبة الظهر الدائرية الكلاسيكية في خلف اللاعب (Backpack) كما في Surviv.io
+            ctx.fillStyle = outfit.pack;
+            ctx.beginPath();
+            ctx.arc(-14, 0, 14, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // 2. الجسم الدائري الكلاسيكي لـ Surviv.io
+            ctx.fillStyle = outfit.body;
+            ctx.beginPath();
+            ctx.arc(0, 0, ent.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // 3. السترة الواقية الدائرية (Vest)
+            if (outfit.hasVest) {
+                ctx.strokeStyle = outfit.vest;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(0, 0, ent.radius - 3.5, -Math.PI * 0.65, Math.PI * 0.65);
+                ctx.stroke();
+            }
+
+            // 4. الأيدي الدائرية المنفصلة الشهيرة في Surviv.io والأسلحة
+            if (ent.activeSlot <= 1 && ent.slots[ent.activeSlot]) {
+                const gun = ent.slots[ent.activeSlot];
+                // ماسورة السلاح
+                ctx.fillStyle = gun.color;
+                ctx.fillRect(10, -4, gun.length, 8);
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(10, -4, gun.length, 8);
+
+                // اليدان تمسكان بالسلاح
+                ctx.fillStyle = outfit.hands;
+                ctx.beginPath();
+                ctx.arc(15, 7, 6.5, 0, Math.PI * 2);
+                ctx.arc(24, -4, 6.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 2.2;
+                ctx.stroke();
+            } else if (ent.activeSlot === 2) {
+                const melee = ent.slots[2];
+                const punchOffset = ent.punchAnim * 18;
+                if (melee.id !== 'fists') {
+                    ctx.fillStyle = melee.color;
+                    ctx.fillRect(14 + punchOffset, 8, melee.range * 0.58, 5);
+                    ctx.strokeStyle = '#0f172a';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(14 + punchOffset, 8, melee.range * 0.58, 5);
+                }
+                // اليدان الدائريتان عند الضرب بالقبضة أو السلاح اليدوي
+                ctx.fillStyle = outfit.hands;
+                ctx.beginPath();
+                ctx.arc(17 + punchOffset, 13, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 2.2;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(17, -13, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            } else if (ent.activeSlot === 3) {
+                const gInfo = GRENADE_TYPES[ent.grenadeType];
+                ctx.fillStyle = outfit.hands;
+                ctx.beginPath();
+                ctx.arc(18, 11, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 2.2;
+                ctx.stroke();
+
+                ctx.fillStyle = gInfo.color;
+                ctx.beginPath();
+                ctx.arc(23, 11, 6.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 5. الخوذة الدائرية أعلى الرأس (Helmet) بأسلوب Surviv.io
+            if (outfit.hasHelmet) {
+                ctx.fillStyle = outfit.helmet;
+                ctx.beginPath();
+                ctx.arc(-1, 0, 12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!player) return;
+
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+
+            // خلفية عشب Surviv.io الخضراء (#80af49)
+            ctx.fillStyle = groundPattern || '#80af49';
+            ctx.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
+
+            // بقع رملية وترابية
+            dirtPatches.forEach(dp => {
+                ctx.save();
+                ctx.translate(dp.x, dp.y);
+                ctx.rotate(dp.rot);
+                ctx.fillStyle = 'rgba(182, 152, 102, 0.35)';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, dp.rx, dp.ry, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // شبكة الطرق الرملية الواسعة في الخريطة العملاقة
+            ctx.fillStyle = '#b69866';
+            ctx.fillRect(0, MAP_SIZE * 0.33 - 65, MAP_SIZE, 130);
+            ctx.fillRect(0, MAP_SIZE * 0.67 - 65, MAP_SIZE, 130);
+            ctx.fillRect(MAP_SIZE * 0.33 - 65, 0, 130, MAP_SIZE);
+            ctx.fillRect(MAP_SIZE * 0.67 - 65, 0, 130, MAP_SIZE);
+
+            // حدود الخريطة
+            ctx.strokeStyle = '#dc2626';
+            ctx.lineWidth = 14;
+            ctx.strokeRect(0, 0, MAP_SIZE, MAP_SIZE);
+
+            // أرضيات المباني (خشبية أو خرسانية بأسلوب Surviv.io)
+            buildings.forEach(b => {
+                ctx.fillStyle = b.floor === 'wood' ? '#9c6b3b' : '#94a3b8';
+                ctx.fillRect(b.x, b.y, b.w, b.h);
+                ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+                ctx.lineWidth = 2;
+                if (b.floor === 'wood') {
+                    for (let py = b.y + 24; py < b.y + b.h; py += 24) {
+                        ctx.beginPath();
+                        ctx.moveTo(b.x, py);
+                        ctx.lineTo(b.x + b.w, py);
+                        ctx.stroke();
+                    }
+                } else {
+                    ctx.strokeRect(b.x + 10, b.y + 10, b.w - 20, b.h - 20);
+                }
+            });
+
+            // رسم الأسلحة واللوت الملقى على الأرض
+            lootItems.forEach(item => {
+                ctx.save();
+                ctx.translate(item.x, item.y);
+                drawLootItem(ctx, item);
+                ctx.restore();
+            });
+
+            // رسم القنابل والرصاص
+            grenades.forEach(g => {
+                ctx.fillStyle = g.type === 'frag' ? '#15803d' : '#cbd5e1';
+                ctx.beginPath();
+                ctx.arc(g.x, g.y, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            bullets.forEach(b => {
+                ctx.strokeStyle = '#fef08a';
+                ctx.lineWidth = 3.5;
+                ctx.beginPath();
+                ctx.moveTo(b.x, b.y);
+                ctx.lineTo(b.x - b.vx * 0.022, b.y - b.vy * 0.022);
+                ctx.stroke();
+            });
+
+            // رسم المقاتلين (اللاعب والـ 29 بوتاً)
+            entities.forEach(ent => {
+                if (ent.alive) drawFighter(ctx, ent);
+            });
+
+            // رسم العوائق بأسلوب Surviv.io (الجدران، النوافذ، الصخور الرمادية، الصناديق المربعة، الأشجار المتداخلة)
+            obstacles.forEach(obs => {
+                if (obs.type === 'wall') {
+                    ctx.fillStyle = '#334155';
+                    ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                    ctx.strokeStyle = '#0f172a';
+                    ctx.lineWidth = 2.5;
+                    ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                } else if (obs.type === 'window') {
+                    if (!obs.broken) {
+                        ctx.fillStyle = 'rgba(125, 211, 252, 0.65)';
+                        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                        ctx.strokeStyle = '#e0f2fe';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                    } else {
+                        ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                        ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
+                        ctx.fillRect(obs.x, obs.y, 6, 6);
+                        ctx.fillRect(obs.x + obs.w - 6, obs.y + obs.h - 6, 6, 6);
+                    }
+                } else if (obs.type === 'crate') {
+                    // صندوق Surviv.io الخشبي المربع الشهير
+                    ctx.fillStyle = '#9a6332';
+                    ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                    ctx.strokeStyle = '#3e240e';
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                    ctx.strokeRect(obs.x + 8, obs.y + 8, obs.w - 16, obs.h - 16);
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x + 8, obs.y + 8);
+                    ctx.lineTo(obs.x + obs.w - 8, obs.y + obs.h - 8);
+                    ctx.stroke();
+                } else if (obs.type === 'rock') {
+                    // صخرة Surviv.io الرمادية الكلاسيكية
+                    ctx.fillStyle = '#808892';
+                    ctx.beginPath();
+                    ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#2e3338';
+                    ctx.lineWidth = 3.5;
+                    ctx.stroke();
+                    ctx.fillStyle = '#9aa2ac';
+                    ctx.beginPath();
+                    ctx.arc(obs.x - 7, obs.y - 7, obs.radius * 0.45, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (obs.type === 'tree') {
+                    // شجرة Surviv.io الدائرية ذات الطبقات الخضراء والحد الداكن
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+                    ctx.beginPath();
+                    ctx.arc(obs.x + 10, obs.y + 10, obs.radius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#523418';
+                    ctx.beginPath();
+                    ctx.arc(obs.x, obs.y, obs.trunkRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#2a1a0b';
+                    ctx.lineWidth = 2.5;
+                    ctx.stroke();
+
+                    ctx.fillStyle = 'rgba(62, 122, 42, 0.88)';
+                    ctx.beginPath();
+                    ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#254b19';
+                    ctx.lineWidth = 3.5;
+                    ctx.stroke();
+
+                    ctx.fillStyle = 'rgba(84, 156, 58, 0.72)';
+                    ctx.beginPath();
+                    ctx.arc(obs.x - 6, obs.y - 6, obs.radius * 0.68, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            // سحب القنابل الدخانية
+            smokes.forEach(sm => {
+                ctx.fillStyle = 'rgba(203, 213, 225, 0.78)';
+                ctx.beginPath();
+                ctx.arc(sm.x, sm.y, sm.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // الجزيئات والانفجارات
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // دوائر القصف الجوي Red Zone
+            redZones.forEach(rz => {
+                ctx.fillStyle = 'rgba(220, 38, 38, 0.24)';
+                ctx.beginPath();
+                ctx.arc(rz.x, rz.y, rz.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            });
+
+            // حدود المنطقة الآمنة
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.restore();
+
+            drawMinimap();
+        }
+
+        function drawMinimap() {
+            const w = miniCanvas.width;
+            const h = miniCanvas.height;
+            const scale = w / MAP_SIZE;
+
+            miniCtx.clearRect(0, 0, w, h);
+            miniCtx.fillStyle = '#2d4c2b';
+            miniCtx.fillRect(0, 0, w, h);
+
+            miniCtx.fillStyle = '#94a3b8';
+            buildings.forEach(b => {
+                miniCtx.fillRect(b.x * scale, b.y * scale, b.w * scale, b.h * scale);
+            });
+
+            redZones.forEach(rz => {
+                miniCtx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+                miniCtx.beginPath();
+                miniCtx.arc(rz.x * scale, rz.y * scale, rz.radius * scale, 0, Math.PI * 2);
+                miniCtx.fill();
+            });
+
+            miniCtx.strokeStyle = '#38bdf8';
+            miniCtx.lineWidth = 2;
+            miniCtx.beginPath();
+            miniCtx.arc(zone.x * scale, zone.y * scale, zone.radius * scale, 0, Math.PI * 2);
+            miniCtx.stroke();
+
+            if (player && player.alive) {
+                miniCtx.fillStyle = '#facc15';
+                miniCtx.beginPath();
+                miniCtx.arc(player.x * scale, player.y * scale, 4, 0, Math.PI * 2);
+                miniCtx.fill();
+            }
+        }
+
+        // ==========================================
+        // 11. حلقة اللعبة الرئيسية والتحجيم
+        // ==========================================
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function gameLoop(timestamp) {
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+            lastTime = timestamp;
+
+            update(dt);
+            draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            document.getElementById('startScreen').style.display = 'none';
+            initWorld();
+            gameState = 'PLAYING';
+            lastTime = performance.now();
+        });
+
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            document.getElementById('endScreen').style.display = 'none';
+            initWorld();
+            gameState = 'PLAYING';
+            lastTime = performance.now();
+        });
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
